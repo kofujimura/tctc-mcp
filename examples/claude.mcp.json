@@ -1,0 +1,12 @@
+{
+  "$comment": "Sample MCP client registration for Claude Code / Claude Desktop. Read-only mode: omit TCTC_ADMIN_PRIVATE_KEY. Admin mode: set it in the environment that launches the client (never in this file).",
+  "mcpServers": {
+    "tctc": {
+      "command": "npx",
+      "args": ["tctc-mcp", "--config", "examples/config.sepolia.json"],
+      "env": {
+        "ALCHEMY_API_KEY": "${ALCHEMY_API_KEY}"
+      }
+    }
+  }
+}

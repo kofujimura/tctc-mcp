@@ -1,0 +1,81 @@
+# tctc-mcp
+
+An MCP server exposing [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303)
+(Token-Controlled Token Circulation) roles to AI agents: agents check
+their own on-chain permissions, and human principals grant/revoke them
+by minting/burning control tokens — no permission server required.
+
+Status: **v1 implemented** — unit-tested and verified end-to-end
+against the Sepolia demo deployment (grant → check → revoke → check
+through a real MCP client).
+
+## Quick start
+
+```bash
+npm install && npm run build
+
+# read-only mode (agent side): only query tools are registered
+ALCHEMY_API_KEY=... node dist/index.js --config examples/config.sepolia.json
+
+# admin mode (principal side): grant_role / revoke_role also registered
+ALCHEMY_API_KEY=... TCTC_ADMIN_PRIVATE_KEY=0x... \
+  node dist/index.js --config examples/config.sepolia.json
+```
+
+MCP client registration: see
+[examples/claude.mcp.json](examples/claude.mcp.json). The admin private
+key is only ever read from the `TCTC_ADMIN_PRIVATE_KEY` environment
+variable; configs containing anything that looks like a private key are
+rejected at startup.
+
+## Tools
+
+| Tool | Mode | Purpose |
+|---|---|---|
+| `list_roles` | both | Configured roles and their control tokens |
+| `check_role` | both | Does an account hold a role? (live `balanceOf`, with evidence) |
+| `check_all_roles` | both | Session-start self-assessment across all roles |
+| `resolve_agent` | both* | ERC-8004 `agentId` → owner / agentURI / agentWallet / ERC-6551 TBA |
+| `grant_role` | admin | Mint the control token to a subject |
+| `revoke_role` | admin | Burn the subject's control token — the kill switch |
+
+\* registered only when the config has an `identity` section.
+
+Subjects can be given as a raw `address`, as an ERC-8004 `agentId`
+(resolved to its ERC-6551 Token Bound Account, the recommended binding
+target), or omitted to use the config's `self`.
+
+## Documents
+
+- [docs/CONCEPT.md](docs/CONCEPT.md) — background and rationale: TCTC as
+  the authorization layer for AI agents, its relationship to ERC-8004
+  (Trustless Agents) and ERC-6551 (Token Bound Accounts), recommended
+  ERC-7303 spec updates, and the adoption strategy.
+- [docs/MCP_SERVER_SPEC.md](docs/MCP_SERVER_SPEC.md) — v1 design
+  specification (architecture, config, tools, security, roadmap).
+- [examples/config.sepolia.json](examples/config.sepolia.json) —
+  concrete config for the Sepolia demo deployment (primary roles) and
+  the original TCTC reference deployment (`COMPLEX_*` roles).
+- [examples/contracts/](examples/contracts/) — sources of the demo
+  contracts deployed on Sepolia (`AgentControlTokens`,
+  `TCTCDemoToken`, `ERC7303`).
+
+## Demo deployment (Sepolia, Etherscan-verified)
+
+- `AgentControlTokens` (soulbound, issuer-burnable ERC-1155):
+  [`0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B`](https://sepolia.etherscan.io/address/0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B#code)
+- `TCTCDemoToken` (ERC-721 + ERC-7303 target):
+  [`0xa52fe39D0de852e88488faa34e723E861D0b09BD`](https://sepolia.etherscan.io/address/0xa52fe39D0de852e88488faa34e723E861D0b09BD#code)
+
+## Development
+
+```bash
+npm test                  # unit tests (vitest)
+node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client
+                          # (needs ALCHEMY_API_KEY; admin phase additionally
+                          #  TCTC_ADMIN_PRIVATE_KEY and E2E_SUBJECT)
+```
+
+## Related
+
+- TCTC reference implementation: <https://github.com/kofujimura/TCTC>

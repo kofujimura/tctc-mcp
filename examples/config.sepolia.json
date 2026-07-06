@@ -1,0 +1,117 @@
+{
+  "$comment": "tctc-mcp example config for Sepolia. Primary roles point at the tctc-mcp demo deployment (2026-07-06): TCTCDemoToken (ERC-721 + ERC-7303) 0xa52fe39D0de852e88488faa34e723E861D0b09BD gated by AgentControlTokens (soulbound, issuer-burnable ERC-1155) 0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B, owner = 0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03. COMPLEX_* roles point at the original TCTC reference deployment MyComplexToken 0x0b57d5752f35071ad47c4448a2e106757a111835 (read-only showcase of OR semantics; its ControlTokens are not issuer-burnable — see MCP_SERVER_SPEC.md §5.5).",
+
+  "chains": {
+    "sepolia": {
+      "chainId": 11155111,
+      "rpcUrl": "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+    }
+  },
+  "defaultChain": "sepolia",
+
+  "roles": {
+    "MINTER_ROLE": {
+      "description": "May call safeMint() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning MinterCert: AgentControlTokens typeId 1 (soulbound).",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B",
+          "typeId": 1
+        }
+      ],
+      "admin": {
+        "grant": {
+          "function": "mint(address,uint256,uint256)",
+          "args": ["$subject", "$typeId", 1]
+        },
+        "revoke": {
+          "function": "burnByIssuer(address,uint256,uint256)",
+          "args": ["$subject", "$typeId", 1]
+        }
+      }
+    },
+
+    "BURNER_ROLE": {
+      "description": "May call burn() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning BurnerCert: AgentControlTokens typeId 2 (soulbound).",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B",
+          "typeId": 2
+        }
+      ],
+      "admin": {
+        "grant": {
+          "function": "mint(address,uint256,uint256)",
+          "args": ["$subject", "$typeId", 1]
+        },
+        "revoke": {
+          "function": "burnByIssuer(address,uint256,uint256)",
+          "args": ["$subject", "$typeId", 1]
+        }
+      }
+    },
+
+    "COMPLEX_MINTER_ROLE": {
+      "description": "MINTER_ROLE of MyComplexToken (0x0b57d5752f35071ad47c4448a2e106757a111835): held by owning typeId 1 on ANY of three ERC-1155 control tokens (OR semantics). Note: safeMint() additionally requires COMPLEX_MEMBER_ROLE (AND at the target contract).",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x5E82784b2ac81530D2ee797E5E78f0AFB930D31c",
+          "typeId": 1
+        },
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x161F5f9b7F026bfEE44133cd013c761C7C68bA73",
+          "typeId": 1
+        },
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0xf2F4e51c500457E113c276EDE257Fb475ADec3c5",
+          "typeId": 1
+        }
+      ]
+    },
+
+    "COMPLEX_MEMBER_ROLE": {
+      "description": "MEMBER_ROLE of MyComplexToken: held by owning any token of the ERC-721 membership contract 0x60cB707898Eb9F0F6fb71701C76B29d130C9A4A8.",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc721",
+          "address": "0x60cB707898Eb9F0F6fb71701C76B29d130C9A4A8",
+          "typeId": null
+        }
+      ]
+    },
+
+    "COMPLEX_BURNER_ROLE": {
+      "description": "BURNER_ROLE of MyComplexToken: held by owning typeId 2 on ANY of the same three ERC-1155 control tokens.",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x5E82784b2ac81530D2ee797E5E78f0AFB930D31c",
+          "typeId": 2
+        },
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x161F5f9b7F026bfEE44133cd013c761C7C68bA73",
+          "typeId": 2
+        },
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0xf2F4e51c500457E113c276EDE257Fb475ADec3c5",
+          "typeId": 2
+        }
+      ]
+    }
+  }
+}
