@@ -53,6 +53,9 @@ target), or omitted to use the config's `self`.
   ERC-7303 spec updates, and the adoption strategy.
 - [docs/MCP_SERVER_SPEC.md](docs/MCP_SERVER_SPEC.md) — v1 design
   specification (architecture, config, tools, security, roadmap).
+- [docs/TEST_REPORT.md](docs/TEST_REPORT.md) — v1 test report: 24 unit
+  tests and the live Sepolia E2E (on-chain kill-switch cycle through a
+  real MCP client).
 - [examples/config.sepolia.json](examples/config.sepolia.json) —
   concrete config for the Sepolia demo deployment (primary roles) and
   the original TCTC reference deployment (`COMPLEX_*` roles).
