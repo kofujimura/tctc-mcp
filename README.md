@@ -9,6 +9,15 @@ Status: **v1 implemented** — unit-tested and verified end-to-end
 against the Sepolia demo deployment (grant → check → revoke → check
 through a real MCP client).
 
+## Demo (60 seconds)
+
+[![Watch the 60-second demo video](docs/tctc-mcp-demo-thumb.png)](https://www.youtube.com/watch?v=o547bwYT32A)
+
+*A human grants an AI agent a minting permission; the agent verifies it
+on-chain and mints an NFT. The human burns the role token — and the
+agent instantly loses the capability. Live on Sepolia, no permission
+server involved.*
+
 ## Quick start
 
 ```bash
