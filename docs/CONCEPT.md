@@ -30,7 +30,7 @@ Key properties:
 - **Auditable.** Every grant/revoke is an on-chain transaction.
 
 Reference implementation: <https://github.com/kofujimura/TCTC>
-(includes deployments on Sepolia and Polygon zkEVM).
+(includes a deployment on Sepolia).
 
 ## 2. Why the AI-agent era raises its value
 
@@ -51,7 +51,9 @@ whole ecosystem.
 
 ## 3. Relationship to ERC-8004
 
-ERC-8004 (Trustless Agents) and ERC-7303 are complementary layers:
+ERC-8004 (Trustless Agents; in Review status since October 2025 and
+still under active revision as of early 2026) and ERC-7303 are
+complementary layers:
 
 | Layer | Standard | Question answered |
 |---|---|---|
@@ -143,42 +145,69 @@ into a companion ERC.
 A separate proposal profiling ERC-7303 + ERC-8004 + ERC-6551:
 
 - the TBA-binding pattern of §3.2 as the normative profile;
-- **expiring control tokens** (ERC-5643-style expiry, or tokens whose
-  `balanceOf` returns 0 after a deadline) so short-lived delegations
-  ("for one hour", "for this task") fail safe without a revocation
-  transaction;
+- **expiring control tokens** so short-lived delegations ("for one
+  hour", "for this task") fail safe without a revocation transaction.
+  Agreed design: a time-aware `balanceOf` in the control-token contract
+  (returns 0 once `block.timestamp ≥ expiresAt`), which expires
+  gaslessly and requires **zero changes** to ERC-7303 or to target
+  contracts; extension = re-mint, plus an optional public `sweep()` to
+  reconcile indexers;
 - optional declaration of held/required roles in the ERC-8004
   registration file (`agentURI`), enabling off-chain discovery followed
   by on-chain enforcement.
 
 ## 5. Adoption strategy
 
-Priority order agreed in the discussion:
+Priority order agreed in the discussion. **Steps 1–3 shipped in July
+2026**; step 4 is the current frontier.
 
-1. **MCP server (`tctc-mcp`)** — lets any MCP-compatible AI agent check,
-   and any human principal grant/revoke, on-chain permissions. The MCP
+1. **MCP server (`tctc-mcp`)** — ✅ shipped. v1 is implemented,
+   unit-tested, and verified end-to-end on Sepolia (grant → check →
+   revoke → check through a real MCP client), and published on npm as
+   [`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp) — any
+   MCP-compatible agent can run it with `npx -y tctc-mcp`. The MCP
    server itself is the proof-of-concept of TCTC as the agent
-   authorization layer. See [MCP_SERVER_SPEC.md](./MCP_SERVER_SPEC.md).
-2. **Demo + video** — a human dashboard granting/revoking role SBTs to a
-   live agent whose capabilities change in real time ("the human burns a
-   token; the agent instantly loses the tool").
-3. **Agent skill** (`npx skills add` distributable) — the TCTC design
-   pattern, scaffolding recipes, and the delegation workflow, written
-   for AI agents to consume.
-4. Medium-term: npm package `@tctc/contracts`, an OpenZeppelin-Wizard
-   style generator, the companion ERC, and an ERC-7579 validation module
-   ("session key valid only while holding the role token").
+   authorization layer. See [MCP_SERVER_SPEC.md](./MCP_SERVER_SPEC.md)
+   and [TEST_REPORT.md](./TEST_REPORT.md).
+2. **Demo + video** — ✅ shipped. A live Sepolia demo deployment
+   (soulbound, issuer-burnable control tokens + an ERC-7303 target) and
+   a [60-second video](https://www.youtube.com/watch?v=o547bwYT32A) of
+   a real agent session: the principal grants a role, the agent
+   verifies it on-chain and mints; the principal burns the token and
+   the agent refuses the next mint — the kill switch, live.
+3. **Agent skill** — ✅ shipped as
+   [kofujimura/tctc-skills](https://github.com/kofujimura/tctc-skills)
+   (`npx skills add kofujimura/tctc-skills`): the delegation rules for
+   agents, tctc-mcp setup, and contract-gating recipes, written for AI
+   agents to consume.
+4. Medium-term (next up):
+   - **expiring control tokens** (§4.2 design) — reference
+     implementation + Sepolia deployment, and tctc-mcp support for
+     `$expiresAt` in grant templates;
+   - **Ethereum Magicians re-engagement** — a post positioning
+     token-based (`balanceOf`) authorization against the
+     signature/registry-based approaches that dominate the current
+     agent-delegation discussion (ERC-7710/7715 delegations & session
+     keys, ERC-8226 mandates), with tctc-mcp + the demo as working
+     evidence;
+   - npm package `@tctc/contracts`, an OpenZeppelin-Wizard style
+     generator, the companion ERC, and an ERC-7579 validation module
+     ("session key valid only while holding the role token").
 
 ### Implementation-driven standardization
 
-Deliberately build the MCP server **v1 against the current spec**
-(config-driven: the role → control-token map is supplied off-chain),
-and let the pain points encountered there justify the introspection
-interface of §4.1. "A real consumer exists and cannot generalize
-without these view functions" is a far stronger argument on Ethereum
-Magicians than a speculative interface proposal — and it promotes the
-spec and the tooling at the same time.
+The MCP server v1 was deliberately built **against the current spec**
+(config-driven: the role → control-token map is supplied off-chain), so
+that the pain points encountered would justify the introspection
+interface of §4.1. This played out as predicted — see
+[MCP_SERVER_SPEC.md §5.5](./MCP_SERVER_SPEC.md): the lack of on-chain
+getters is exactly why the role map must be configured by hand, and the
+original reference deployment lacked issuer-side burn, confirming the
+"MUST be issuer-burnable" recommendation of §4.1. "A real consumer
+exists and cannot generalize without these view functions" is a far
+stronger argument on Ethereum Magicians than a speculative interface
+proposal — and it promotes the spec and the tooling at the same time.
 
-Note that v1 needs **no ERC-7303 changes at all**: `check_role` is a
+Note that v1 needed **no ERC-7303 changes at all**: `check_role` is a
 plain `balanceOf` call on standard ERC-721/1155 contracts, and
 grant/revoke are `mint`/`burn` on the control-token contracts.
