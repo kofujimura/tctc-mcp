@@ -1,0 +1,38 @@
+{
+  "$comment": "Agent-side (read-only) config for the tctc-mcp demo. Uses a public Sepolia RPC so it contains no secrets at all — safe to commit and to show on screen. 'self' is the demo agent's account: check_role / check_all_roles without a subject report this account's permissions.",
+
+  "chains": {
+    "sepolia": {
+      "chainId": 11155111,
+      "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com"
+    }
+  },
+  "defaultChain": "sepolia",
+
+  "self": { "address": "0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03" },
+
+  "roles": {
+    "MINTER_ROLE": {
+      "description": "May call safeMint() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning MinterCert: AgentControlTokens typeId 1 (soulbound).",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B",
+          "typeId": 1
+        }
+      ]
+    },
+    "BURNER_ROLE": {
+      "description": "May call burn() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning BurnerCert: AgentControlTokens typeId 2 (soulbound).",
+      "controlTokens": [
+        {
+          "chain": "sepolia",
+          "standard": "erc1155",
+          "address": "0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B",
+          "typeId": 2
+        }
+      ]
+    }
+  }
+}

@@ -6,8 +6,23 @@
   "author": "Ko Fujimura <ko@fujimura.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kofujimura/TCTC"
+    "url": "git+https://github.com/kofujimura/tctc-mcp.git"
   },
+  "homepage": "https://github.com/kofujimura/tctc-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/kofujimura/tctc-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "erc-7303",
+    "tctc",
+    "ethereum",
+    "ai-agents",
+    "authorization",
+    "access-control",
+    "soulbound-token"
+  ],
   "type": "module",
   "bin": {
     "tctc-mcp": "dist/index.js"
@@ -35,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "playwright": "^1.61.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.2.0"

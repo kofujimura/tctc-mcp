@@ -1,13 +1,15 @@
 # tctc-mcp
 
+[![npm version](https://img.shields.io/npm/v/tctc-mcp)](https://www.npmjs.com/package/tctc-mcp)
+
 An MCP server exposing [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303)
 (Token-Controlled Token Circulation) roles to AI agents: agents check
 their own on-chain permissions, and human principals grant/revoke them
 by minting/burning control tokens — no permission server required.
 
-Status: **v1 implemented** — unit-tested and verified end-to-end
-against the Sepolia demo deployment (grant → check → revoke → check
-through a real MCP client).
+Status: **v1 published on npm** ([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp))
+— unit-tested and verified end-to-end against the Sepolia demo
+deployment (grant → check → revoke → check through a real MCP client).
 
 ## Demo (60 seconds)
 
@@ -20,18 +22,31 @@ server involved.*
 
 ## Quick start
 
+The package is published on npm, so no clone or build is needed — `npx`
+fetches and runs it directly:
+
 ```bash
-npm install && npm run build
+# 1. Get a config. The secret-free Sepolia demo config needs no API keys:
+curl -fsSLO https://raw.githubusercontent.com/kofujimura/tctc-mcp/main/examples/config.sepolia.agent.json
 
-# read-only mode (agent side): only query tools are registered
-ALCHEMY_API_KEY=... node dist/index.js --config examples/config.sepolia.json
+# 2. Register with your MCP client, e.g. Claude Code
+#    (read-only mode: only query tools are registered)
+claude mcp add tctc -- npx -y tctc-mcp --config "$PWD/config.sepolia.agent.json"
 
-# admin mode (principal side): grant_role / revoke_role also registered
-ALCHEMY_API_KEY=... TCTC_ADMIN_PRIVATE_KEY=0x... \
-  node dist/index.js --config examples/config.sepolia.json
+# Admin mode (principal side): grant_role / revoke_role also registered.
+# Provide the issuer key ONLY via the environment:
+claude mcp add tctc-admin --env TCTC_ADMIN_PRIVATE_KEY=0x... \
+  -- npx -y tctc-mcp --config "$PWD/config.sepolia.json"
 ```
 
-MCP client registration: see
+Or in a project-scoped `.mcp.json`:
+
+```json
+{ "mcpServers": { "tctc": { "command": "npx",
+    "args": ["-y", "tctc-mcp", "--config", "examples/config.sepolia.agent.json"] } } }
+```
+
+A fuller registration example is in
 [examples/claude.mcp.json](examples/claude.mcp.json). The admin private
 key is only ever read from the `TCTC_ADMIN_PRIVATE_KEY` environment
 variable; configs containing anything that looks like a private key are
@@ -68,6 +83,9 @@ target), or omitted to use the config's `self`.
 - [examples/config.sepolia.json](examples/config.sepolia.json) —
   concrete config for the Sepolia demo deployment (primary roles) and
   the original TCTC reference deployment (`COMPLEX_*` roles).
+- [examples/config.sepolia.agent.json](examples/config.sepolia.agent.json)
+  — secret-free agent-side config for the same demo deployment (public
+  RPC, no API keys); the one used in the Quick start above.
 - [examples/contracts/](examples/contracts/) — sources of the demo
   contracts deployed on Sepolia (`AgentControlTokens`,
   `TCTCDemoToken`, `ERC7303`).
@@ -82,6 +100,10 @@ target), or omitted to use the config's `self`.
 ## Development
 
 ```bash
+git clone https://github.com/kofujimura/tctc-mcp.git && cd tctc-mcp
+npm install && npm run build
+node dist/index.js --config examples/config.sepolia.agent.json
+
 npm test                  # unit tests (vitest)
 node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client
                           # (needs ALCHEMY_API_KEY; admin phase additionally
@@ -90,4 +112,8 @@ node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client
 
 ## Related
 
+- npm package: <https://www.npmjs.com/package/tctc-mcp>
+- Agent skill (teaches agents to use TCTC safely; install with
+  `npx skills add kofujimura/tctc-skills`):
+  <https://github.com/kofujimura/tctc-skills>
 - TCTC reference implementation: <https://github.com/kofujimura/TCTC>
