@@ -298,13 +298,16 @@ CI-optional).
 
 ## 8. Demo deployment (Sepolia)
 
-Deployed and Etherscan-verified on 2026-07-06 specifically for this
-server (sources in [`examples/contracts/`](../examples/contracts/)):
+Deployed and Etherscan-verified specifically for this server
+(`AgentControlTokens` on 2026-07-06; `TCTCDemoToken` redeployed on
+2026-07-11 to implement the `IERC7303` introspection interface merged
+via [ethereum/ERCs#1872](https://github.com/ethereum/ERCs/pull/1872);
+sources in [`examples/contracts/`](../examples/contracts/)):
 
 | Contract | Address | Notes |
 |---|---|---|
 | `AgentControlTokens` | [`0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B`](https://sepolia.etherscan.io/address/0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B#code) | ERC-1155 control tokens; **soulbound** (transfers revert) and **issuer-burnable** (`burnByIssuer`, `onlyOwner`); typeId 1 = MinterCert, 2 = BurnerCert; grant = `mint(address,uint256,uint256)` |
-| `TCTCDemoToken` | [`0xa52fe39D0de852e88488faa34e723E861D0b09BD`](https://sepolia.etherscan.io/address/0xa52fe39D0de852e88488faa34e723E861D0b09BD#code) | ERC-721 + ERC-7303 target; `safeMint(address)` gated by MINTER_ROLE, `burn(uint256)` by BURNER_ROLE |
+| `TCTCDemoToken` | [`0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D`](https://sepolia.etherscan.io/address/0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D#code) | ERC-721 + ERC-7303 target; `safeMint(address)` gated by MINTER_ROLE, `burn(uint256)` by BURNER_ROLE; implements `IERC7303` (`hasRole`, `getERC721ControlTokens`, `getERC1155ControlTokens`, `ERC1155ControlTokenAdded` events, ERC-165 interfaceId `0x4ee69337`) |
 
 The kill-switch cycle was smoke-tested on-chain: mint MinterCert →
 `safeMint` succeeds → `burnByIssuer` → `safeMint` reverts with

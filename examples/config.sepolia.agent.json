@@ -13,7 +13,7 @@
 
   "roles": {
     "MINTER_ROLE": {
-      "description": "May call safeMint() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning MinterCert: AgentControlTokens typeId 1 (soulbound).",
+      "description": "May call safeMint() on TCTCDemoToken (0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D). Held by owning MinterCert: AgentControlTokens typeId 1 (soulbound).",
       "controlTokens": [
         {
           "chain": "sepolia",
@@ -24,7 +24,7 @@
       ]
     },
     "BURNER_ROLE": {
-      "description": "May call burn() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning BurnerCert: AgentControlTokens typeId 2 (soulbound).",
+      "description": "May call burn() on TCTCDemoToken (0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D). Held by owning BurnerCert: AgentControlTokens typeId 2 (soulbound).",
       "controlTokens": [
         {
           "chain": "sepolia",

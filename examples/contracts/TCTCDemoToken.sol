@@ -37,4 +37,10 @@ contract TCTCDemoToken is ERC721, ERC7303 {
     function burn(uint256 tokenId) public onlyHasToken(BURNER_ROLE, msg.sender) {
         _burn(tokenId);
     }
+
+    function supportsInterface(bytes4 interfaceId)
+        public view override returns (bool)
+    {
+        return interfaceId == type(IERC7303).interfaceId || super.supportsInterface(interfaceId);
+    }
 }

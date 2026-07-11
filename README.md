@@ -88,14 +88,17 @@ target), or omitted to use the config's `self`.
   RPC, no API keys); the one used in the Quick start above.
 - [examples/contracts/](examples/contracts/) — sources of the demo
   contracts deployed on Sepolia (`AgentControlTokens`,
-  `TCTCDemoToken`, `ERC7303`).
+  `TCTCDemoToken`, `ERC7303`, `IERC7303`).
 
 ## Demo deployment (Sepolia, Etherscan-verified)
 
 - `AgentControlTokens` (soulbound, issuer-burnable ERC-1155):
   [`0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B`](https://sepolia.etherscan.io/address/0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B#code)
-- `TCTCDemoToken` (ERC-721 + ERC-7303 target):
-  [`0xa52fe39D0de852e88488faa34e723E861D0b09BD`](https://sepolia.etherscan.io/address/0xa52fe39D0de852e88488faa34e723E861D0b09BD#code)
+- `TCTCDemoToken` (ERC-721 + ERC-7303 target, implements the
+  [`IERC7303` introspection interface](https://github.com/ethereum/ERCs/pull/1872)
+  — `hasRole`, control-token getters, ERC-165 detectable via interfaceId
+  `0x4ee69337`):
+  [`0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D`](https://sepolia.etherscan.io/address/0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D#code)
 
 ## Development
 

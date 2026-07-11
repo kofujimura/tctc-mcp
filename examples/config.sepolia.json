@@ -1,5 +1,5 @@
 {
-  "$comment": "tctc-mcp example config for Sepolia. Primary roles point at the tctc-mcp demo deployment (2026-07-06): TCTCDemoToken (ERC-721 + ERC-7303) 0xa52fe39D0de852e88488faa34e723E861D0b09BD gated by AgentControlTokens (soulbound, issuer-burnable ERC-1155) 0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B, owner = 0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03. COMPLEX_* roles point at the original TCTC reference deployment MyComplexToken 0x0b57d5752f35071ad47c4448a2e106757a111835 (read-only showcase of OR semantics; its ControlTokens are not issuer-burnable — see MCP_SERVER_SPEC.md §5.5).",
+  "$comment": "tctc-mcp example config for Sepolia. Primary roles point at the tctc-mcp demo deployment (target redeployed 2026-07-11 with IERC7303): TCTCDemoToken (ERC-721 + ERC-7303) 0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D gated by AgentControlTokens (soulbound, issuer-burnable ERC-1155) 0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B, owner = 0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03. COMPLEX_* roles point at the original TCTC reference deployment MyComplexToken 0x0b57d5752f35071ad47c4448a2e106757a111835 (read-only showcase of OR semantics; its ControlTokens are not issuer-burnable — see MCP_SERVER_SPEC.md §5.5).",
 
   "chains": {
     "sepolia": {
@@ -11,7 +11,7 @@
 
   "roles": {
     "MINTER_ROLE": {
-      "description": "May call safeMint() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning MinterCert: AgentControlTokens typeId 1 (soulbound).",
+      "description": "May call safeMint() on TCTCDemoToken (0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D). Held by owning MinterCert: AgentControlTokens typeId 1 (soulbound).",
       "controlTokens": [
         {
           "chain": "sepolia",
@@ -33,7 +33,7 @@
     },
 
     "BURNER_ROLE": {
-      "description": "May call burn() on TCTCDemoToken (0xa52fe39D0de852e88488faa34e723E861D0b09BD). Held by owning BurnerCert: AgentControlTokens typeId 2 (soulbound).",
+      "description": "May call burn() on TCTCDemoToken (0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D). Held by owning BurnerCert: AgentControlTokens typeId 2 (soulbound).",
       "controlTokens": [
         {
           "chain": "sepolia",

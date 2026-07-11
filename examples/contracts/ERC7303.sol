@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Author: Ko Fujimura <ko@fujimura.com>
 // Open source repo: https://github.com/kofujimura/TCTC
+// Implements the IERC7303 introspection interface (ERC-7303 spec items 7-9).
 
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "./IERC7303.sol";
 
-abstract contract ERC7303 {
+abstract contract ERC7303 is IERC7303 {
     struct ERC721Token {
         address contractId;
     }
@@ -26,6 +28,37 @@ abstract contract ERC7303 {
     }
 
     /**
+     * @notice Check whether `account` currently holds `role`.
+     */
+    function hasRole(bytes32 role, address account) public view returns (bool) {
+        return _checkHasToken(role, account);
+    }
+
+    /**
+     * @notice Enumerate the ERC-721 control tokens associated with `role`.
+     */
+    function getERC721ControlTokens(bytes32 role) public view returns (address[] memory contractIds) {
+        ERC721Token[] memory tokens = _ERC721_Contracts[role];
+        contractIds = new address[](tokens.length);
+        for (uint i = 0; i < tokens.length; i++) {
+            contractIds[i] = tokens[i].contractId;
+        }
+    }
+
+    /**
+     * @notice Enumerate the ERC-1155 control tokens associated with `role`.
+     */
+    function getERC1155ControlTokens(bytes32 role) public view returns (address[] memory contractIds, uint256[] memory typeIds) {
+        ERC1155Token[] memory tokens = _ERC1155_Contracts[role];
+        contractIds = new address[](tokens.length);
+        typeIds = new uint256[](tokens.length);
+        for (uint i = 0; i < tokens.length; i++) {
+            contractIds[i] = tokens[i].contractId;
+            typeIds[i] = tokens[i].typeId;
+        }
+    }
+
+    /**
      * @notice Grant a role to user who owns a control token specified by the ERC-721 contractId.
      * Multiple calls are allowed, in this case the user must own at least one of the specified token.
      * @param role byte32 The role which you want to grant.
@@ -37,6 +70,7 @@ abstract contract ERC7303 {
             "ERC7303: provided contract does not support ERC721 interface"
         );
         _ERC721_Contracts[role].push(ERC721Token(contractId));
+        emit ERC721ControlTokenAdded(role, contractId);
     }
 
     /**
@@ -52,6 +86,7 @@ abstract contract ERC7303 {
             "ERC7303: provided contract does not support ERC1155 interface"
         );
         _ERC1155_Contracts[role].push(ERC1155Token(contractId, typeId));
+        emit ERC1155ControlTokenAdded(role, contractId, typeId);
     }
 
     function _checkHasToken(bytes32 role, address account) internal view returns (bool) {
