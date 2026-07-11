@@ -108,8 +108,9 @@ Working example: [examples/config.sepolia.discovery.json](examples/config.sepoli
   tests and the live Sepolia E2E (on-chain kill-switch cycle through a
   real MCP client).
 - [examples/config.sepolia.json](examples/config.sepolia.json) —
-  concrete config for the Sepolia demo deployment (primary roles) and
-  the original TCTC reference deployment (`COMPLEX_*` roles).
+  concrete config for the Sepolia demo deployment (primary roles,
+  static bindings) and the TCTC repo's `MyComplexToken` sample
+  (`COMPLEX_*` roles, resolved via IERC7303 `target` discovery).
 - [examples/config.sepolia.agent.json](examples/config.sepolia.agent.json)
   — secret-free agent-side config for the same demo deployment (public
   RPC, no API keys); the one used in the Quick start above.

@@ -1,5 +1,5 @@
 {
-  "$comment": "tctc-mcp example config for Sepolia. Primary roles point at the tctc-mcp demo deployment (target redeployed 2026-07-11 with IERC7303): TCTCDemoToken (ERC-721 + ERC-7303) 0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D gated by AgentControlTokens (soulbound, issuer-burnable ERC-1155) 0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B, owner = 0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03. COMPLEX_* roles point at the original TCTC reference deployment MyComplexToken 0x0b57d5752f35071ad47c4448a2e106757a111835 (read-only showcase of OR semantics; its ControlTokens are not issuer-burnable — see MCP_SERVER_SPEC.md §5.5).",
+  "$comment": "tctc-mcp example config for Sepolia. Primary roles point at the tctc-mcp demo deployment (target redeployed 2026-07-11 with IERC7303): TCTCDemoToken (ERC-721 + ERC-7303) 0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D gated by AgentControlTokens (soulbound, issuer-burnable ERC-1155) 0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B, owner = 0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03. COMPLEX_* roles point at the TCTC repo's IERC7303-compliant MyComplexToken 0x873f0bf314A1e0B566015CEf9dA37783A729Fd02 (deployed 2026-07-12) via v0.2 target discovery: no control tokens are listed here — the server reads the bindings from the contract itself. Its certificates are the same AgentControlTokens as the primary roles, so grant_role/revoke_role on MINTER_ROLE/BURNER_ROLE also flips the COMPLEX_* verdicts (one cert, many targets); MEMBER_ROLE is gated by the soulbound ERC-721 TCTC Membership 0x4223260CEf7cbA173C227b1B11E8a6a8Ce2E388a.",
 
   "chains": {
     "sepolia": {
@@ -55,63 +55,30 @@
     },
 
     "COMPLEX_MINTER_ROLE": {
-      "description": "MINTER_ROLE of MyComplexToken (0x0b57d5752f35071ad47c4448a2e106757a111835): held by owning typeId 1 on ANY of three ERC-1155 control tokens (OR semantics). Note: safeMint() additionally requires COMPLEX_MEMBER_ROLE (AND at the target contract).",
-      "controlTokens": [
-        {
-          "chain": "sepolia",
-          "standard": "erc1155",
-          "address": "0x5E82784b2ac81530D2ee797E5E78f0AFB930D31c",
-          "typeId": 1
-        },
-        {
-          "chain": "sepolia",
-          "standard": "erc1155",
-          "address": "0x161F5f9b7F026bfEE44133cd013c761C7C68bA73",
-          "typeId": 1
-        },
-        {
-          "chain": "sepolia",
-          "standard": "erc1155",
-          "address": "0xf2F4e51c500457E113c276EDE257Fb475ADec3c5",
-          "typeId": 1
-        }
-      ]
+      "description": "MINTER_ROLE of MyComplexToken (0x873f0bf314A1e0B566015CEf9dA37783A729Fd02), resolved via IERC7303 discovery: the contract itself reports an OR over AgentControlTokens typeId 1 (MinterCert) and typeId 3 (PartnerMinterCert). Note: safeMint() additionally requires COMPLEX_MEMBER_ROLE (AND at the target contract).",
+      "target": {
+        "chain": "sepolia",
+        "address": "0x873f0bf314A1e0B566015CEf9dA37783A729Fd02",
+        "role": "MINTER_ROLE"
+      }
     },
 
     "COMPLEX_MEMBER_ROLE": {
-      "description": "MEMBER_ROLE of MyComplexToken: held by owning any token of the ERC-721 membership contract 0x60cB707898Eb9F0F6fb71701C76B29d130C9A4A8.",
-      "controlTokens": [
-        {
-          "chain": "sepolia",
-          "standard": "erc721",
-          "address": "0x60cB707898Eb9F0F6fb71701C76B29d130C9A4A8",
-          "typeId": null
-        }
-      ]
+      "description": "MEMBER_ROLE of MyComplexToken, resolved via IERC7303 discovery: gated by the soulbound ERC-721 TCTC Membership 0x4223260CEf7cbA173C227b1B11E8a6a8Ce2E388a.",
+      "target": {
+        "chain": "sepolia",
+        "address": "0x873f0bf314A1e0B566015CEf9dA37783A729Fd02",
+        "role": "MEMBER_ROLE"
+      }
     },
 
     "COMPLEX_BURNER_ROLE": {
-      "description": "BURNER_ROLE of MyComplexToken: held by owning typeId 2 on ANY of the same three ERC-1155 control tokens.",
-      "controlTokens": [
-        {
-          "chain": "sepolia",
-          "standard": "erc1155",
-          "address": "0x5E82784b2ac81530D2ee797E5E78f0AFB930D31c",
-          "typeId": 2
-        },
-        {
-          "chain": "sepolia",
-          "standard": "erc1155",
-          "address": "0x161F5f9b7F026bfEE44133cd013c761C7C68bA73",
-          "typeId": 2
-        },
-        {
-          "chain": "sepolia",
-          "standard": "erc1155",
-          "address": "0xf2F4e51c500457E113c276EDE257Fb475ADec3c5",
-          "typeId": 2
-        }
-      ]
+      "description": "BURNER_ROLE of MyComplexToken, resolved via IERC7303 discovery: gated by AgentControlTokens typeId 2 (BurnerCert).",
+      "target": {
+        "chain": "sepolia",
+        "address": "0x873f0bf314A1e0B566015CEf9dA37783A729Fd02",
+        "role": "BURNER_ROLE"
+      }
     }
   }
 }
