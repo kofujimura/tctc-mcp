@@ -22,7 +22,7 @@ function baseConfig(overrides: Record<string, unknown> = {}): string {
 describe("parseConfig", () => {
   it("parses a minimal valid config", () => {
     const cfg = parseConfig(baseConfig(), {});
-    expect(cfg.roles.MINTER_ROLE.controlTokens[0].typeId).toBe(1n);
+    expect(cfg.roles.MINTER_ROLE.controlTokens![0].typeId).toBe(1n);
     expect(cfg.defaultChain).toBe("sepolia");
   });
 
@@ -96,6 +96,39 @@ describe("parseConfig", () => {
       },
     });
     expect(() => parseConfig(badTokenChain, {})).toThrow(/polygon/);
+  });
+
+  it("accepts a discovery role (target instead of controlTokens)", () => {
+    const cfg = parseConfig(
+      baseConfig({ roles: { R: { target: { address: CT } } } }),
+      {},
+    );
+    expect(cfg.roles.R.target?.address).toBe(CT);
+    expect(cfg.roles.R.controlTokens).toBeUndefined();
+  });
+
+  it("rejects a role with both controlTokens and target, or neither", () => {
+    const both = baseConfig({
+      roles: {
+        R: {
+          controlTokens: [
+            { chain: "sepolia", standard: "erc1155", address: CT, typeId: 1 },
+          ],
+          target: { address: CT },
+        },
+      },
+    });
+    expect(() => parseConfig(both, {})).toThrow(/exactly one/);
+
+    const neither = baseConfig({ roles: { R: {} } });
+    expect(() => parseConfig(neither, {})).toThrow(/exactly one/);
+  });
+
+  it("rejects a discovery role on an unknown chain", () => {
+    const bad = baseConfig({
+      roles: { R: { target: { chain: "polygon", address: CT } } },
+    });
+    expect(() => parseConfig(bad, {})).toThrow(/polygon/);
   });
 
   it("requires identity when self.agentId is used", () => {

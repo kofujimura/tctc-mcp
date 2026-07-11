@@ -1,0 +1,24 @@
+{
+  "$comment": "IERC7303 discovery config for the tctc-mcp demo. No controlTokens are configured: each role names only the target contract (TCTCDemoToken 0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D, redeployed 2026-07-11 implementing IERC7303), and the server reads the role's control-token bindings from the contract itself via getERC721ControlTokens / getERC1155ControlTokens, verifying ERC-165 support (interfaceId 0x4ee69337) first. Public RPC, no secrets — safe to commit.",
+
+  "chains": {
+    "sepolia": {
+      "chainId": 11155111,
+      "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com"
+    }
+  },
+  "defaultChain": "sepolia",
+
+  "self": { "address": "0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03" },
+
+  "roles": {
+    "MINTER_ROLE": {
+      "description": "May call safeMint() on TCTCDemoToken. Control tokens are discovered on-chain via IERC7303.",
+      "target": { "address": "0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D" }
+    },
+    "BURNER_ROLE": {
+      "description": "May call burn() on TCTCDemoToken. Control tokens are discovered on-chain via IERC7303.",
+      "target": { "address": "0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D" }
+    }
+  }
+}

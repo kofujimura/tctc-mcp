@@ -36,16 +36,28 @@ const adminActionSchema = z.object({
     .default(["$subject"]),
 });
 
-const roleSchema = z.object({
-  description: z.string().optional(),
-  controlTokens: z.array(controlTokenSchema).min(1),
-  admin: z
-    .object({
-      grant: adminActionSchema.optional(),
-      revoke: adminActionSchema.optional(),
-    })
-    .optional(),
+const targetSchema = z.object({
+  chain: z.string().min(1).optional(),
+  address: addressSchema,
+  role: z.string().min(1).optional(),
 });
+
+const roleSchema = z
+  .object({
+    description: z.string().optional(),
+    controlTokens: z.array(controlTokenSchema).min(1).optional(),
+    target: targetSchema.optional(),
+    admin: z
+      .object({
+        grant: adminActionSchema.optional(),
+        revoke: adminActionSchema.optional(),
+      })
+      .optional(),
+  })
+  .refine((r) => Boolean(r.controlTokens) !== Boolean(r.target), {
+    message:
+      "exactly one of controlTokens (static bindings) or target (IERC7303 discovery) is required",
+  });
 
 const identitySchema = z.object({
   chain: z.string().min(1),
@@ -73,8 +85,9 @@ const configSchema = z.object({
 });
 
 export type Config = z.infer<typeof configSchema>;
-export type ControlToken = Config["roles"][string]["controlTokens"][number];
+export type ControlToken = z.infer<typeof controlTokenSchema>;
 export type RoleConfig = Config["roles"][string];
+export type TargetConfig = z.infer<typeof targetSchema>;
 export type AdminAction = z.infer<typeof adminActionSchema>;
 export type IdentityConfig = NonNullable<Config["identity"]>;
 
@@ -160,7 +173,15 @@ export function parseConfig(rawJson: string, env: NodeJS.ProcessEnv = process.en
     throw new ConfigError(`defaultChain "${config.defaultChain}" is not in chains`);
   }
   for (const [roleName, role] of Object.entries(config.roles)) {
-    role.controlTokens.forEach((t, i) => {
+    if (role.target) {
+      const chain = role.target.chain ?? config.defaultChain;
+      if (!config.chains[chain]) {
+        throw new ConfigError(
+          `roles.${roleName}.target.chain "${chain}" is not in chains`,
+        );
+      }
+    }
+    role.controlTokens?.forEach((t, i) => {
       if (!config.chains[t.chain]) {
         throw new ConfigError(
           `roles.${roleName}.controlTokens[${i}].chain "${t.chain}" is not in chains`,

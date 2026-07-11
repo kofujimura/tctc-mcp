@@ -6,7 +6,8 @@ export type ToolErrorCode =
   | "NOT_ADMIN_MODE"
   | "ADMIN_ACTION_NOT_CONFIGURED"
   | "TX_REVERTED"
-  | "INVALID_INPUT";
+  | "INVALID_INPUT"
+  | "NOT_IERC7303";
 
 export class ToolError extends Error {
   constructor(

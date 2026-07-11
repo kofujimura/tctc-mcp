@@ -3,13 +3,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config.js";
 import { Chains } from "./chain.js";
-import { BalanceCache, type Context } from "./context.js";
+import { BalanceCache, TtlCache, type Context } from "./context.js";
 import { registerQueryTools } from "./tools/query.js";
 import { registerAdminTools } from "./tools/admin.js";
 import { ConfigError } from "./errors.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const DEFAULT_CACHE_TTL_MS = 10_000;
+const DISCOVERY_CACHE_TTL_MS = 60_000;
 
 interface CliOptions {
   configPath?: string;
@@ -37,7 +38,7 @@ function parseArgs(argv: string[]): CliOptions {
 Usage: tctc-mcp --config <file> [--no-cache]
 
   --config <file>   Config JSON (or set TCTC_CONFIG)
-  --no-cache        Disable the 10s balance read cache
+  --no-cache        Disable the balance (10s) and IERC7303 discovery (60s) caches
 
 Environment:
   TCTC_CONFIG              Config path (alternative to --config)
@@ -73,6 +74,7 @@ async function main(): Promise<void> {
     config,
     chains,
     cache: new BalanceCache(opts.cache ? DEFAULT_CACHE_TTL_MS : 0),
+    discovery: new TtlCache(opts.cache ? DISCOVERY_CACHE_TTL_MS : 0),
     adminMode: adminKey !== undefined,
   };
 

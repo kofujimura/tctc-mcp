@@ -7,9 +7,10 @@ An MCP server exposing [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303)
 their own on-chain permissions, and human principals grant/revoke them
 by minting/burning control tokens — no permission server required.
 
-Status: **v1 published on npm** ([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp))
-— unit-tested and verified end-to-end against the Sepolia demo
-deployment (grant → check → revoke → check through a real MCP client).
+Status: **v0.2** — adds IERC7303 auto-discovery (below); published on
+npm ([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp)), unit-tested
+and verified end-to-end against the Sepolia demo deployment (grant →
+check → revoke → check through a real MCP client).
 
 ## Demo (60 seconds)
 
@@ -59,6 +60,7 @@ rejected at startup.
 | `list_roles` | both | Configured roles and their control tokens |
 | `check_role` | both | Does an account hold a role? (live `balanceOf`, with evidence) |
 | `check_all_roles` | both | Session-start self-assessment across all roles |
+| `discover_roles` | both | Introspect **any** contract via `IERC7303` — no role config needed |
 | `resolve_agent` | both* | ERC-8004 `agentId` → owner / agentURI / agentWallet / ERC-6551 TBA |
 | `grant_role` | admin | Mint the control token to a subject |
 | `revoke_role` | admin | Burn the subject's control token — the kill switch |
@@ -68,6 +70,31 @@ rejected at startup.
 Subjects can be given as a raw `address`, as an ERC-8004 `agentId`
 (resolved to its ERC-6551 Token Bound Account, the recommended binding
 target), or omitted to use the config's `self`.
+
+## IERC7303 auto-discovery (v0.2)
+
+ERC-7303 now defines an introspection interface
+([ethereum/ERCs#1872](https://github.com/ethereum/ERCs/pull/1872), merged
+2026-07-11): compliant contracts expose `hasRole`, control-token getters,
+configuration events, and ERC-165 detection (interfaceId `0x4ee69337`).
+tctc-mcp uses it two ways:
+
+- **`target` roles** — a role config names only the target contract;
+  the server reads which control tokens gate the role *from the contract
+  itself*, and the verdict is the target's own `hasRole()` answer:
+
+  ```json
+  "roles": { "MINTER_ROLE": {
+      "target": { "address": "0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D" } } }
+  ```
+
+- **`discover_roles`** — introspect any address at run time, with no
+  role configuration at all. Non-compliant contracts report
+  `supportsIERC7303: false`; static `controlTokens` configs remain the
+  fallback for pre-IERC7303 deployments.
+
+Working example: [examples/config.sepolia.discovery.json](examples/config.sepolia.discovery.json)
+(secret-free, public RPC), verified live by `scripts/e2e-discovery.mjs`.
 
 ## Documents
 
@@ -86,6 +113,9 @@ target), or omitted to use the config's `self`.
 - [examples/config.sepolia.agent.json](examples/config.sepolia.agent.json)
   — secret-free agent-side config for the same demo deployment (public
   RPC, no API keys); the one used in the Quick start above.
+- [examples/config.sepolia.discovery.json](examples/config.sepolia.discovery.json)
+  — IERC7303 auto-discovery variant: no control tokens configured, the
+  target contract explains its own role structure.
 - [examples/contracts/](examples/contracts/) — sources of the demo
   contracts deployed on Sepolia (`AgentControlTokens`,
   `TCTCDemoToken`, `ERC7303`, `IERC7303`).

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseAbi, type AbiFunction } from "viem";
 import { buildArgs, pickControlToken } from "../src/admin.js";
 import { ToolError } from "../src/errors.js";
-import type { RoleConfig } from "../src/config.js";
+import type { ControlToken } from "../src/config.js";
 
 const SUBJECT = "0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03" as const;
 
@@ -62,23 +62,25 @@ describe("buildArgs", () => {
 
 describe("pickControlToken", () => {
   const token = (addr: string) =>
-    ({ chain: "sepolia", standard: "erc1155", address: addr, typeId: 1n }) as RoleConfig["controlTokens"][number];
+    ({ chain: "sepolia", standard: "erc1155", address: addr, typeId: 1n }) as ControlToken;
 
   it("defaults to the only token", () => {
-    const role = { controlTokens: [token("0x" + "11".repeat(20))] } as RoleConfig;
-    expect(pickControlToken("R", role).address).toBe("0x" + "11".repeat(20));
+    const tokens = [token("0x" + "11".repeat(20))];
+    expect(pickControlToken("R", tokens).address).toBe("0x" + "11".repeat(20));
   });
 
   it("requires an index when multiple tokens exist", () => {
-    const role = {
-      controlTokens: [token("0x" + "11".repeat(20)), token("0x" + "22".repeat(20))],
-    } as RoleConfig;
-    expect(() => pickControlToken("R", role)).toThrow(/controlTokenIndex/);
-    expect(pickControlToken("R", role, 1).address).toBe("0x" + "22".repeat(20));
+    const tokens = [token("0x" + "11".repeat(20)), token("0x" + "22".repeat(20))];
+    expect(() => pickControlToken("R", tokens)).toThrow(/controlTokenIndex/);
+    expect(pickControlToken("R", tokens, 1).address).toBe("0x" + "22".repeat(20));
   });
 
   it("rejects out-of-range indexes", () => {
-    const role = { controlTokens: [token("0x" + "11".repeat(20))] } as RoleConfig;
-    expect(() => pickControlToken("R", role, 5)).toThrow(/controlTokens\[5\]/);
+    const tokens = [token("0x" + "11".repeat(20))];
+    expect(() => pickControlToken("R", tokens, 5)).toThrow(/controlTokens\[5\]/);
+  });
+
+  it("rejects an empty resolved set", () => {
+    expect(() => pickControlToken("R", [])).toThrow(/no control tokens/);
   });
 });

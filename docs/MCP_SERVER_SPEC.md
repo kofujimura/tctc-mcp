@@ -70,8 +70,18 @@ Path given by `--config <file>` or `TCTC_CONFIG`; JSON.
   },
   "defaultChain": "sepolia",
 
-  // The off-chain role → control-token map (v1's core compromise).
+  // The role → control-token map. Each role has EITHER static bindings
+  // ("controlTokens", v1's core compromise) OR a "target" (v0.2+): the
+  // bindings are then read from the target contract itself at check time
+  // via the IERC7303 getters (ERC-165 interfaceId 0x4ee69337), cached 60s.
   "roles": {
+    "DISCOVERED_ROLE": {
+      "target": {
+        "address": "0xIERC7303Target…",
+        "chain": "sepolia",                      // optional, default defaultChain
+        "role": "MINTER_ROLE"                    // optional name/0xhash on the
+      }                                          //   target; default: the key
+    },
     "MINTER_ROLE": {
       "description": "May mint product NFTs on the Example contract",
       "controlTokens": [
@@ -117,6 +127,10 @@ Rules:
 - Private keys are **rejected** if found anywhere in the config file.
 - A role with multiple `controlTokens` is held if **any** of them has
   `balanceOf > 0` (OR semantics, matching ERC-7303).
+- For a `target` role, `check_role` reports the discovered bindings and
+  their balances as evidence, but the **verdict is the target's own
+  `hasRole()` answer** — the same logic its modifier enforces. A
+  disagreement between the two is reported in a `note`.
 
 ## 3. Tools
 
@@ -159,6 +173,33 @@ call on each configured control token — no ERC-7303 changes required.
 Same subject resolution as `check_role`; returns the hasRole verdict
 for every configured role in one call. Intended for an agent's
 session-start self-assessment ("what am I allowed to do right now?").
+
+### 3.3b `discover_roles` *(v0.2)*
+
+Introspect **any** contract implementing `IERC7303`
+([ethereum/ERCs#1872](https://github.com/ethereum/ERCs/pull/1872)) — no
+role configuration needed; the contract is the source of truth. Role
+names are keccak256-hashed; a 32-byte `0x…` value is used as the hash
+directly.
+
+- **Input:**
+  ```json
+  { "target": "0xContract…",
+    "chain": "sepolia",                  // optional, default defaultChain
+    "roles": ["MINTER_ROLE"],
+    "subject": { "address": "0x…" } }    // optional: also report hasRole
+  ```
+- **Output:**
+  ```json
+  { "target": "0x…", "chain": "sepolia",
+    "supportsIERC7303": true, "interfaceId": "0x4ee69337",
+    "roles": [ { "role": "MINTER_ROLE", "roleHash": "0x9f2d…",
+                 "erc721ControlTokens": [],
+                 "erc1155ControlTokens": [ { "address": "0x…", "typeId": "1" } ],
+                 "hasRole": false } ] }
+  ```
+  A non-compliant target yields `"supportsIERC7303": false` with no
+  bindings claimed (not an error — probing is a legitimate question).
 
 ### 3.4 `resolve_agent` *(requires `identity` config)*
 
@@ -287,11 +328,14 @@ CI-optional).
 - **v1.1:** expiry awareness — if a control token exposes an expiry
   interface (ERC-5643-style), report `expiresAt` in `check_role`
   evidence.
-- **v2:** on-chain auto-discovery — given only a target contract
-  address, read `getControlTokens` / `hasRole` / ERC-165 from the
-  proposed ERC-7303 introspection interface and drop the `roles`
-  section of the config entirely. This release is the demonstration
-  that motivates the spec change.
+- **v2:** ~~on-chain auto-discovery~~ **shipped early as v0.2**
+  (2026-07-11), once the introspection interface was merged into the
+  ERC ([ethereum/ERCs#1872](https://github.com/ethereum/ERCs/pull/1872)):
+  `target` roles read their bindings from the contract via `IERC7303`,
+  and `discover_roles` introspects arbitrary addresses with no role
+  config at all. The config's role section survives only as (a) static
+  bindings for pre-IERC7303 contracts and (b) the human-readable
+  role-name → target mapping.
 - **v2.x:** tool-gating middleware (proxy other MCP servers' tools,
   allowing calls only while the agent's TBA holds the mapped role) —
   the full "burn the token, the agent instantly loses the tool" demo.

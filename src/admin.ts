@@ -7,34 +7,40 @@ import {
   ContractFunctionRevertedError,
 } from "viem";
 import type { Context } from "./context.js";
-import type { AdminAction, ControlToken, RoleConfig } from "./config.js";
-import { getRole } from "./roles.js";
+import type { AdminAction, ControlToken } from "./config.js";
+import { getRole, resolveBindings } from "./roles.js";
 import { ToolError } from "./errors.js";
 
 export function pickControlToken(
   roleName: string,
-  role: RoleConfig,
+  tokens: ControlToken[],
   controlTokenIndex?: number,
 ): ControlToken {
   if (controlTokenIndex !== undefined) {
-    const token = role.controlTokens[controlTokenIndex];
+    const token = tokens[controlTokenIndex];
     if (!token) {
       throw new ToolError(
         "INVALID_INPUT",
         `role "${roleName}" has no controlTokens[${controlTokenIndex}] ` +
-          `(${role.controlTokens.length} configured)`,
+          `(${tokens.length} resolved)`,
       );
     }
     return token;
   }
-  if (role.controlTokens.length > 1) {
+  if (tokens.length === 0) {
     throw new ToolError(
       "INVALID_INPUT",
-      `role "${roleName}" has ${role.controlTokens.length} control tokens; ` +
+      `role "${roleName}" resolved to no control tokens`,
+    );
+  }
+  if (tokens.length > 1) {
+    throw new ToolError(
+      "INVALID_INPUT",
+      `role "${roleName}" has ${tokens.length} control tokens; ` +
         `specify controlTokenIndex`,
     );
   }
-  return role.controlTokens[0];
+  return tokens[0];
 }
 
 /**
@@ -110,7 +116,8 @@ export async function executeAdminAction(
       `role "${roleName}" has no admin.${actionName} function configured`,
     );
   }
-  const token = pickControlToken(roleName, role, controlTokenIndex);
+  const resolved = await resolveBindings(ctx, roleName, role);
+  const token = pickControlToken(roleName, resolved.tokens, controlTokenIndex);
 
   // parseAbi's type-level parser needs literal strings; the signature is
   // runtime config here, so fall back to the plain Abi type.

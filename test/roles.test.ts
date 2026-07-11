@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Address } from "viem";
 import { checkRole } from "../src/roles.js";
-import { BalanceCache, type Context } from "../src/context.js";
+import { BalanceCache, TtlCache, type Context } from "../src/context.js";
 import { parseConfig } from "../src/config.js";
 import { ToolError } from "../src/errors.js";
 
@@ -41,7 +41,13 @@ function fakeCtx(balances: Record<string, bigint>, cacheTtlMs = 0): {
     }),
   } as unknown as Context["chains"];
   return {
-    ctx: { config, chains, cache: new BalanceCache(cacheTtlMs), adminMode: false },
+    ctx: {
+      config,
+      chains,
+      cache: new BalanceCache(cacheTtlMs),
+      discovery: new TtlCache(cacheTtlMs),
+      adminMode: false,
+    },
     calls,
   };
 }

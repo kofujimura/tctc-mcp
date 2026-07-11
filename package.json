@@ -1,6 +1,6 @@
 {
   "name": "tctc-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server exposing ERC-7303 (Token-Controlled Token Circulation) on-chain roles to AI agents",
   "license": "Apache-2.0",
   "author": "Ko Fujimura <ko@fujimura.com>",

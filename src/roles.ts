@@ -1,6 +1,7 @@
 import { parseAbi, type Address } from "viem";
 import type { Context } from "./context.js";
-import type { RoleConfig } from "./config.js";
+import type { ControlToken, RoleConfig } from "./config.js";
+import { discoverBindings, hasRoleOnTarget, roleHash } from "./discovery.js";
 import { ToolError } from "./errors.js";
 
 const erc721Abi = parseAbi([
@@ -23,6 +24,12 @@ export interface CheckResult {
   subject: Address;
   hasRole: boolean;
   evidence: Evidence[];
+  /** Where the control-token bindings came from. */
+  bindingSource: "config" | "ierc7303";
+  /** Discovery only: the introspected target contract and role hash. */
+  target?: Address;
+  roleHash?: `0x${string}`;
+  note?: string;
 }
 
 export function getRole(ctx: Context, roleName: string): RoleConfig {
@@ -38,9 +45,56 @@ export function getRole(ctx: Context, roleName: string): RoleConfig {
   return role;
 }
 
+export interface ResolvedBindings {
+  tokens: ControlToken[];
+  source: "config" | "ierc7303";
+  /** Discovery only. */
+  chain?: string;
+  target?: Address;
+  roleHash?: `0x${string}`;
+}
+
+/**
+ * A role's control tokens come either from the config (static) or from the
+ * target contract itself via the IERC7303 getters (discovery).
+ */
+export async function resolveBindings(
+  ctx: Context,
+  roleName: string,
+  role: RoleConfig,
+): Promise<ResolvedBindings> {
+  if (role.controlTokens) {
+    return { tokens: role.controlTokens, source: "config" };
+  }
+  const target = role.target!;
+  const chain = target.chain ?? ctx.config.defaultChain;
+  const hash = roleHash(target.role ?? roleName);
+  const bindings = await discoverBindings(ctx, chain, target.address as Address, hash);
+  return {
+    tokens: [
+      ...bindings.erc721.map((address) => ({
+        chain,
+        standard: "erc721" as const,
+        address,
+        typeId: null,
+      })),
+      ...bindings.erc1155.map(({ address, typeId }) => ({
+        chain,
+        standard: "erc1155" as const,
+        address,
+        typeId,
+      })),
+    ],
+    source: "ierc7303",
+    chain,
+    target: target.address as Address,
+    roleHash: hash,
+  };
+}
+
 async function readBalance(
   ctx: Context,
-  token: RoleConfig["controlTokens"][number],
+  token: ControlToken,
   subject: Address,
 ): Promise<bigint> {
   const cacheKey = `${token.chain}:${token.address}:${token.typeId ?? ""}:${subject}`;
@@ -83,8 +137,9 @@ export async function checkRole(
   subject: Address,
 ): Promise<CheckResult> {
   const role = getRole(ctx, roleName);
+  const resolved = await resolveBindings(ctx, roleName, role);
   const evidence: Evidence[] = [];
-  for (const token of role.controlTokens) {
+  for (const token of resolved.tokens) {
     const balance = await readBalance(ctx, token, subject);
     evidence.push({
       chain: token.chain,
@@ -94,12 +149,34 @@ export async function checkRole(
       balance: balance.toString(),
     });
   }
-  return {
+  const fromBalances = evidence.some((e) => BigInt(e.balance) > 0n);
+  const result: CheckResult = {
     role: roleName,
     subject,
-    hasRole: evidence.some((e) => BigInt(e.balance) > 0n),
+    hasRole: fromBalances,
     evidence,
+    bindingSource: resolved.source,
   };
+  if (resolved.source === "ierc7303") {
+    // The target's own hasRole is authoritative — it is the same logic its
+    // modifier enforces, including anything beyond the enumerable bindings.
+    const onTarget = await hasRoleOnTarget(
+      ctx,
+      resolved.chain!,
+      resolved.target!,
+      resolved.roleHash!,
+      subject,
+    );
+    result.hasRole = onTarget;
+    result.target = resolved.target;
+    result.roleHash = resolved.roleHash;
+    if (onTarget !== fromBalances) {
+      result.note =
+        "target.hasRole() disagrees with the balance evidence; " +
+        "the target's answer is authoritative (custom logic on the target?)";
+    }
+  }
+  return result;
 }
 
 export async function checkAllRoles(
