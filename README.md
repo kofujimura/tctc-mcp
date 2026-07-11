@@ -138,6 +138,11 @@ no further transaction).
   ERC-7303 spec updates, and the adoption strategy.
 - [docs/MCP_SERVER_SPEC.md](docs/MCP_SERVER_SPEC.md) — v1 design
   specification (architecture, config, tools, security, roadmap).
+- [docs/ERC_DRAFT_EXPIRABLE_1155.md](docs/ERC_DRAFT_EXPIRABLE_1155.md) —
+  working draft of a planned ERC, "Expirable ERC-1155 Tokens": the
+  standard behind the timed roles above (per-holder expiry, time-aware
+  `balanceOf`, `expiresAt`/`ExpiryUpdated`, interface ID `0x300e616b`).
+  Not yet submitted to ethereum/ERCs; feedback welcome.
 - [docs/TEST_REPORT.md](docs/TEST_REPORT.md) — v1 test report: 24 unit
   tests and the live Sepolia E2E (on-chain kill-switch cycle through a
   real MCP client).
