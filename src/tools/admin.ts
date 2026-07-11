@@ -38,8 +38,28 @@ export function registerAdminTools(server: McpServer, ctx: Context): void {
       title: "Grant a role (mint control token)",
       description:
         "Mint the role's control token to a subject, granting the role on-chain. " +
-        "Sends a transaction from the admin signer and waits for inclusion.",
-      inputSchema,
+        "Sends a transaction from the admin signer and waits for inclusion. " +
+        "Roles backed by an expiring control token (grant template with $expiresAt) " +
+        "REQUIRE expiresInSeconds or expiresAt: the grant then auto-revokes " +
+        "gaslessly when the expiry passes — 'grant MINTER_ROLE for one hour'.",
+      inputSchema: {
+        ...inputSchema,
+        expiresInSeconds: z
+          .number()
+          .int()
+          .positive()
+          .describe(
+            "Time-limit the grant: expiry = now + this many seconds (e.g. 3600 = one hour). " +
+              "Only for roles whose grant template has $expiresAt",
+          )
+          .optional(),
+        expiresAt: z
+          .number()
+          .int()
+          .positive()
+          .describe("Absolute expiry as unix seconds (alternative to expiresInSeconds)")
+          .optional(),
+      },
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -47,7 +67,7 @@ export function registerAdminTools(server: McpServer, ctx: Context): void {
         openWorldHint: true,
       },
     },
-    handled(async ({ role, subject, controlTokenIndex }) => {
+    handled(async ({ role, subject, controlTokenIndex, expiresInSeconds, expiresAt }) => {
       const resolved = await resolveSubject(ctx, subject);
       const result = await executeAdminAction(
         ctx,
@@ -55,6 +75,7 @@ export function registerAdminTools(server: McpServer, ctx: Context): void {
         "grant",
         resolved.address,
         controlTokenIndex,
+        { expiresInSeconds, expiresAt },
       );
       return jsonResult({ ...result, subjectResolvedVia: resolved.via });
     }),

@@ -10,6 +10,9 @@ const erc721Abi = parseAbi([
 const erc1155Abi = parseAbi([
   "function balanceOf(address account, uint256 id) view returns (uint256)",
 ]);
+const expiryAbi = parseAbi([
+  "function expiresAt(address account, uint256 id) view returns (uint64)",
+]);
 
 export interface Evidence {
   chain: string;
@@ -17,6 +20,12 @@ export interface Evidence {
   standard: "erc721" | "erc1155";
   typeId: string | null;
   balance: string;
+  /**
+   * Expiring control tokens only: unix seconds at which this grant expires
+   * (or expired — balance already reads 0 then). Absent for tokens without
+   * an expiresAt(account, id) view.
+   */
+  expiresAt?: string;
 }
 
 export interface CheckResult {
@@ -130,6 +139,39 @@ async function readBalance(
   return balance;
 }
 
+/**
+ * Probe for the expiring-control-token view expiresAt(account, id).
+ * Most control tokens don't implement it; any failure means "not expiring"
+ * and is deliberately silent — expiry only ever adds information, the
+ * authoritative check remains balanceOf (time-aware on expiring tokens).
+ */
+async function readExpiresAt(
+  ctx: Context,
+  token: ControlToken,
+  subject: Address,
+): Promise<bigint> {
+  if (token.standard !== "erc1155") return 0n;
+  const cacheKey = `expiry:${token.chain}:${token.address}:${token.typeId}:${subject}`;
+  const cached = ctx.cache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  let value = 0n;
+  try {
+    value = BigInt(
+      await ctx.chains.public(token.chain).readContract({
+        address: token.address as Address,
+        abi: expiryAbi,
+        functionName: "expiresAt",
+        args: [subject, token.typeId!],
+      }),
+    );
+  } catch {
+    // no expiresAt() on this control token — not an expiring grant
+  }
+  ctx.cache.set(cacheKey, value);
+  return value;
+}
+
 /** OR semantics across a role's control tokens, matching ERC-7303. */
 export async function checkRole(
   ctx: Context,
@@ -141,12 +183,14 @@ export async function checkRole(
   const evidence: Evidence[] = [];
   for (const token of resolved.tokens) {
     const balance = await readBalance(ctx, token, subject);
+    const expiresAt = await readExpiresAt(ctx, token, subject);
     evidence.push({
       chain: token.chain,
       controlToken: token.address as Address,
       standard: token.standard,
       typeId: token.typeId === null ? null : token.typeId.toString(),
       balance: balance.toString(),
+      ...(expiresAt > 0n ? { expiresAt: expiresAt.toString() } : {}),
     });
   }
   const fromBalances = evidence.some((e) => BigInt(e.balance) > 0n);

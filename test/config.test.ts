@@ -137,6 +137,26 @@ describe("parseConfig", () => {
     );
   });
 
+  it("accepts a timed grant template ($expiresAt on uint64)", () => {
+    const cfg = parseConfig(
+      baseConfig({
+        roles: {
+          R: {
+            target: { address: CT },
+            admin: {
+              grant: {
+                function: "mint(address,uint256,uint64)",
+                args: ["$subject", "$typeId", "$expiresAt"],
+              },
+            },
+          },
+        },
+      }),
+      {},
+    );
+    expect(cfg.roles.R.admin?.grant?.args).toContain("$expiresAt");
+  });
+
   it("accepts the shipped Sepolia example config", async () => {
     const { readFileSync } = await import("node:fs");
     const raw = readFileSync(new URL("../examples/config.sepolia.json", import.meta.url), "utf8");
@@ -145,5 +165,6 @@ describe("parseConfig", () => {
     expect(cfg.roles.MINTER_ROLE.admin?.revoke?.function).toBe(
       "burnByIssuer(address,uint256,uint256)",
     );
+    expect(cfg.roles.TIMED_MINTER_ROLE.admin?.grant?.args).toContain("$expiresAt");
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseAbi, type AbiFunction } from "viem";
-import { buildArgs, pickControlToken } from "../src/admin.js";
+import { buildArgs, pickControlToken, resolveExpiry } from "../src/admin.js";
 import { ToolError } from "../src/errors.js";
 import type { ControlToken } from "../src/config.js";
 
@@ -57,6 +57,78 @@ describe("buildArgs", () => {
         { subject: SUBJECT, typeId: null },
       ),
     ).toThrow(/address/);
+  });
+
+  it("maps $expiresAt onto uint64 parameters", () => {
+    const args = buildArgs(
+      {
+        function: "mint(address,uint256,uint64)",
+        args: ["$subject", "$typeId", "$expiresAt"],
+      },
+      abiFn("mint(address,uint256,uint64)"),
+      { subject: SUBJECT, typeId: 1n, expiresAt: 1789000000n },
+    );
+    expect(args).toEqual([SUBJECT, 1n, 1789000000n]);
+  });
+
+  it("rejects $expiresAt when no expiry was resolved", () => {
+    expect(() =>
+      buildArgs(
+        {
+          function: "mint(address,uint256,uint64)",
+          args: ["$subject", "$typeId", "$expiresAt"],
+        },
+        abiFn("mint(address,uint256,uint64)"),
+        { subject: SUBJECT, typeId: 1n },
+      ),
+    ).toThrow(/expiry/);
+  });
+});
+
+describe("resolveExpiry", () => {
+  const NOW = 1_700_000_000;
+  const timed = {
+    function: "mint(address,uint256,uint64)",
+    args: ["$subject", "$typeId", "$expiresAt"],
+  };
+  const untimed = {
+    function: "mint(address,uint256,uint256)",
+    args: ["$subject", "$typeId", 1],
+  };
+
+  it("computes now + expiresInSeconds", () => {
+    expect(resolveExpiry("R", timed, { expiresInSeconds: 3600 }, NOW)).toBe(
+      BigInt(NOW + 3600),
+    );
+  });
+
+  it("passes absolute expiresAt through", () => {
+    expect(resolveExpiry("R", timed, { expiresAt: NOW + 60 }, NOW)).toBe(
+      BigInt(NOW + 60),
+    );
+  });
+
+  it("requires an expiry option for timed templates", () => {
+    expect(() => resolveExpiry("R", timed, {}, NOW)).toThrow(/expiresInSeconds/);
+  });
+
+  it("rejects both options at once", () => {
+    expect(() =>
+      resolveExpiry("R", timed, { expiresInSeconds: 60, expiresAt: NOW + 60 }, NOW),
+    ).toThrow(/not both/);
+  });
+
+  it("rejects expiry options on non-timed templates", () => {
+    expect(() =>
+      resolveExpiry("R", untimed, { expiresInSeconds: 60 }, NOW),
+    ).toThrow(/not time-limited/);
+    expect(resolveExpiry("R", untimed, {}, NOW)).toBeUndefined();
+  });
+
+  it("rejects expiries in the past", () => {
+    expect(() => resolveExpiry("R", timed, { expiresAt: NOW }, NOW)).toThrow(
+      /future/,
+    );
   });
 });
 

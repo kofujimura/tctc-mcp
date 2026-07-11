@@ -54,6 +54,25 @@
       }
     },
 
+    "TIMED_MINTER_ROLE": {
+      "description": "MINTER_ROLE of the expiry-demo TCTCDemoToken (0x3eAb11DE9655817A2e2977A486d9D33eBD10c9Ce) — an UNMODIFIED target bound to ExpiringControlTokens 0xb5abB6c060ed287e8B25aD121c8B46eE404fF09b, whose balanceOf() returns 0 once the holder's expiry passes. Grant with expiresInSeconds ('grant for one hour'); the role then auto-revokes gaslessly, and burnByIssuer remains the immediate kill switch. check_role evidence includes expiresAt.",
+      "target": {
+        "chain": "sepolia",
+        "address": "0x3eAb11DE9655817A2e2977A486d9D33eBD10c9Ce",
+        "role": "MINTER_ROLE"
+      },
+      "admin": {
+        "grant": {
+          "function": "mint(address,uint256,uint64)",
+          "args": ["$subject", "$typeId", "$expiresAt"]
+        },
+        "revoke": {
+          "function": "burnByIssuer(address,uint256)",
+          "args": ["$subject", "$typeId"]
+        }
+      }
+    },
+
     "COMPLEX_MINTER_ROLE": {
       "description": "MINTER_ROLE of MyComplexToken (0x873f0bf314A1e0B566015CEf9dA37783A729Fd02), resolved via IERC7303 discovery: the contract itself reports an OR over AgentControlTokens typeId 1 (MinterCert) and typeId 3 (PartnerMinterCert). Note: safeMint() additionally requires COMPLEX_MEMBER_ROLE (AND at the target contract).",
       "target": {

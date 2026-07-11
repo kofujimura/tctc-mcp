@@ -63,6 +63,7 @@ export function registerQueryTools(server: McpServer, ctx: Context): void {
           adminActions: {
             grant: Boolean(role.admin?.grant),
             revoke: Boolean(role.admin?.revoke),
+            timedGrant: Boolean(role.admin?.grant?.args.includes("$expiresAt")),
           },
         })),
       }),

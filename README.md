@@ -7,10 +7,12 @@ An MCP server exposing [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303)
 their own on-chain permissions, and human principals grant/revoke them
 by minting/burning control tokens — no permission server required.
 
-Status: **v0.2** — adds IERC7303 auto-discovery (below); published on
-npm ([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp)), unit-tested
+Status: **v0.3** — adds timed roles with gasless auto-expiry (below),
+on top of v0.2's IERC7303 auto-discovery; published on npm
+([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp)), unit-tested
 and verified end-to-end against the Sepolia demo deployment (grant →
-check → revoke → check through a real MCP client).
+check → revoke → check, and grant-for-75s → auto-expiry, through a
+real MCP client).
 
 ## Demo (60 seconds)
 
@@ -96,6 +98,38 @@ tctc-mcp uses it two ways:
 Working example: [examples/config.sepolia.discovery.json](examples/config.sepolia.discovery.json)
 (secret-free, public RPC), verified live by `scripts/e2e-discovery.mjs`.
 
+## Timed roles: gasless auto-expiry (v0.3)
+
+Delegation to an agent is usually *short-term* — "mint for one hour",
+"act for the duration of this task". With an **expiring control token**
+([`ExpiringControlTokens`](https://sepolia.etherscan.io/address/0xb5abB6c060ed287e8B25aD121c8B46eE404fF09b#code)),
+`balanceOf()` returns 0 once the holder's expiry passes, so the role
+revokes **by itself, with no transaction** — even if the principal
+forgets, goes offline, or loses keys. The ERC-7303 target contract
+needs no changes at all (the Sepolia expiry demo target is a
+byte-for-byte copy of `TCTCDemoToken`).
+
+- **Granting:** a role whose grant template has `$expiresAt` requires
+  an expiry — `grant_role` with `expiresInSeconds: 3600` is
+  "grant MINTER_ROLE for one hour":
+
+  ```json
+  "admin": { "grant": { "function": "mint(address,uint256,uint64)",
+                        "args": ["$subject", "$typeId", "$expiresAt"] } }
+  ```
+
+- **Checking:** `check_role` evidence reports `expiresAt` (unix
+  seconds) when the control token exposes it, so an agent can
+  self-report "this permission expires in 5 minutes".
+- **Kill switch unchanged:** expiry is a fail-safe, not a replacement —
+  `revoke_role` (issuer burn) still revokes immediately within the
+  validity window.
+
+Working example: the `TIMED_MINTER_ROLE` in
+[examples/config.sepolia.json](examples/config.sepolia.json), verified
+live by `scripts/e2e-expiry.mjs` (grant for 75 s → watch it expire with
+no further transaction).
+
 ## Documents
 
 - [docs/CONCEPT.md](docs/CONCEPT.md) — background and rationale: TCTC as
@@ -130,6 +164,12 @@ Working example: [examples/config.sepolia.discovery.json](examples/config.sepoli
   — `hasRole`, control-token getters, ERC-165 detectable via interfaceId
   `0x4ee69337`):
   [`0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D`](https://sepolia.etherscan.io/address/0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D#code)
+- `ExpiringControlTokens` (soulbound, issuer-burnable ERC-1155 with
+  per-holder expiry; time-aware `balanceOf` — the basis of timed roles):
+  [`0xb5abB6c060ed287e8B25aD121c8B46eE404fF09b`](https://sepolia.etherscan.io/address/0xb5abB6c060ed287e8B25aD121c8B46eE404fF09b#code)
+- Expiry demo target (unmodified `TCTCDemoToken` bytecode bound to the
+  expiring control tokens):
+  [`0x3eAb11DE9655817A2e2977A486d9D33eBD10c9Ce`](https://sepolia.etherscan.io/address/0x3eAb11DE9655817A2e2977A486d9D33eBD10c9Ce#code)
 
 ## Development
 

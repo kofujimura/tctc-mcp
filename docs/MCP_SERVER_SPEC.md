@@ -94,8 +94,10 @@ Path given by `--config <file>` or `TCTC_CONFIG`; JSON.
       ],
       // Optional, admin mode: how to grant/revoke on this control token.
       // "args" is a template: "$subject" → resolved subject address,
-      // "$typeId" → the control token's typeId; other entries are
-      // literals. Defaults to ["$subject"] when omitted.
+      // "$typeId" → the control token's typeId, "$expiresAt" (v0.3) →
+      // the grant's expiry in unix seconds (the tool call must then pass
+      // expiresInSeconds or expiresAt); other entries are literals.
+      // Defaults to ["$subject"] when omitted.
       "admin": {
         "grant": { "function": "safeMint(address)" },
         "revoke": { "function": "burn(address,uint256,uint256)",
@@ -167,6 +169,13 @@ call on each configured control token — no ERC-7303 changes required.
     "evidence": [ { "controlToken": "0x…", "standard": "erc721",
                     "balance": "1" } ] }
   ```
+- **Expiring control tokens (v0.3):** each ERC-1155 binding is also
+  probed for the `expiresAt(address account, uint256 id)` view (as
+  implemented by `ExpiringControlTokens`); when present and non-zero,
+  the evidence entry carries `"expiresAt": "<unix seconds>"` so the
+  agent can self-report "this permission expires in 5 minutes". The
+  probe failing just means "not an expiring token" — the verdict always
+  rests on (time-aware) `balanceOf`.
 
 ### 3.3 `check_all_roles`
 
@@ -228,11 +237,18 @@ Mint the role's control token to a subject.
   { "role": "MINTER_ROLE",
     "subject": { "agentId": 42 },      // resolved to the TBA — the
                                        // recommended binding target
-    "controlTokenIndex": 0 }           // optional if the role has one token
+    "controlTokenIndex": 0,            // optional if the role has one token
+    "expiresInSeconds": 3600 }         // timed roles only (v0.3); or
+                                       // "expiresAt": <unix seconds>
   ```
 - **Behavior:** calls the configured `admin.grant` function from the
-  signer account; waits for inclusion.
+  signer account; waits for inclusion. If the grant template contains
+  `$expiresAt`, exactly one of `expiresInSeconds` / `expiresAt` is
+  required ("grant MINTER_ROLE for one hour"); on non-timed roles both
+  are rejected. `list_roles` reports which roles are timed
+  (`adminActions.timedGrant`).
 - **Output:** `{ "txHash": "0x…", "status": "success", "subject": "0x…" }`
+  — plus `"expiresAt": "<unix seconds>"` for timed grants.
 
 ### 3.6 `revoke_role` *(admin mode only)*
 
@@ -325,9 +341,15 @@ CI-optional).
 
 - **v1 (this spec):** config-driven; query + admin tools; ERC-8004/6551
   resolution; Sepolia example config.
-- **v1.1:** expiry awareness — if a control token exposes an expiry
-  interface (ERC-5643-style), report `expiresAt` in `check_role`
-  evidence.
+- **v1.1:** ~~expiry awareness~~ **shipped as v0.3** (2026-07-12),
+  built on `ExpiringControlTokens`
+  (`0xb5abB6c060ed287e8B25aD121c8B46eE404fF09b`, Sepolia): a control
+  token whose `balanceOf()` returns 0 once the holder's expiry passes,
+  so an **unmodified** ERC-7303 target revokes gaslessly. The server
+  side: `$expiresAt` grant-template placeholder + `expiresInSeconds` /
+  `expiresAt` arguments on `grant_role`, and an `expiresAt(account, id)`
+  probe reported in `check_role` evidence. The view name and event are
+  candidates for standardization in a companion ERC.
 - **v2:** ~~on-chain auto-discovery~~ **shipped early as v0.2**
   (2026-07-11), once the introspection interface was merged into the
   ERC ([ethereum/ERCs#1872](https://github.com/ethereum/ERCs/pull/1872)):
