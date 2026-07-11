@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.kofujimura/tctc-mcp",
+  "description": "ERC-7303 on-chain roles for AI agents: check permissions via balanceOf, grant/revoke by minting/burning control tokens — no permission server",
+  "repository": {
+    "url": "https://github.com/kofujimura/tctc-mcp",
+    "source": "github"
+  },
+  "version": "0.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "tctc-mcp",
+      "version": "0.3.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "named",
+          "name": "--config",
+          "description": "Path to the role/chain config JSON (see examples/ in the repo; the secret-free Sepolia demo config works out of the box)",
+          "isRequired": true,
+          "format": "string"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "TCTC_ADMIN_PRIVATE_KEY",
+          "description": "Issuer key enabling grant_role/revoke_role (admin mode). Omit for read-only mode: state-changing tools are then not even registered",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
