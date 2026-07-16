@@ -189,6 +189,16 @@ Whether binding applies per-call-in-batch or to the batch as one artifact is
 a real question, but it deserves its own design round (contract v2) rather
 than riding in on v1.
 
+## Known implementations
+
+- [babyblueviper1/tctc-validate-action](https://github.com/babyblueviper1/tctc-validate-action)
+  — first known implementation (Python/FastAPI; judgment backed by
+  invinoveritas `/review`). Direct-call binding + attestation envelope;
+  wrapper binding (Semantics 3) reported as `not-attempted`, per spec.
+  Independently verified against this contract at
+  [`941b2ce`](https://github.com/babyblueviper1/tctc-validate-action/commit/941b2ce)
+  ([issue #2](https://github.com/kofujimura/tctc-mcp/issues/2)).
+
 ## References
 
 - Specification discussion: https://github.com/kofujimura/tctc-mcp/issues/1
