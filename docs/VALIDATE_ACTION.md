@@ -107,6 +107,16 @@ proof, with the artifact specialized for this seam:
 - JCS = RFC 8785 canonical JSON, so independent implementations recompute
   identical bytes — the same no-trusted-representations discipline as
   canonical ABI encoding on the calldata side.
+- **Tuple normalization (v1 clarification, 2026-07-16):** before JCS, the
+  tuple's hex-string fields (`target`, `calldata`) MUST be lowercased
+  `0x`-prefixed hex; `value` is a decimal string and `chainId` a JSON
+  number. The byte-equality check in Semantics 1 compares bytes, so hex
+  case cannot affect the verdict — but the JCS preimage is a *string*, and
+  without a pinned case two honest implementations recompute different
+  `artifact_hash` values for the same transaction (checksummed vs
+  lowercased `target`, uppercase-hex `calldata`). Changes no semantics;
+  pins the preimage. Surfaced by the first independent implementation
+  ([issue #2](https://github.com/kofujimura/tctc-mcp/issues/2)).
 
 ## Semantics
 
