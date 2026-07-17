@@ -81,11 +81,24 @@ export default function App() {
       return;
     }
     try {
+      // wallet_requestPermissions forces the account picker even when already
+      // connected — a plain eth_requestAccounts silently returns the existing
+      // account, so switching accounts in the wallet would never reach the page.
+      try {
+        await ethereum.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+      } catch (e) {
+        if ((e as { code?: number })?.code === 4001) return; // user closed the picker
+        // method unsupported by this wallet — fall through to eth_requestAccounts
+      }
       const accounts = (await ethereum.request({
         method: "eth_requestAccounts",
       })) as string[];
       if (accounts[0]) setAccount(accounts[0] as Address);
     } catch (e) {
+      if ((e as { code?: number })?.code === 4001) return;
       setError(e instanceof Error ? e.message : String(e));
     }
   }
@@ -228,7 +241,11 @@ export default function App() {
               </option>
             ))}
           </select>
-          <button className="btn" onClick={connectWallet}>
+          <button
+            className="btn"
+            onClick={connectWallet}
+            title={account ? "Connected — click to switch account" : "Connect a browser wallet"}
+          >
             {account ? shortAddress(account) : "Connect wallet"}
           </button>
         </div>
