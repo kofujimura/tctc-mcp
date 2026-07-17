@@ -392,6 +392,13 @@ select {
   color: var(--accent);
 }
 
+.recipient-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
 .tx-log {
   position: fixed;
   right: 16px;

@@ -137,13 +137,18 @@ export function IssuerActions({
 
   return (
     <div className="issuer-actions">
-      <span className="issuer-tag" title="Connected wallet is the owner() of this control token">
-        issuer
+      <span
+        className="issuer-tag"
+        title="Your connected wallet is the owner() of this control token, so you can grant and revoke"
+      >
+        issuer: you
       </span>
+      <span className="recipient-label">recipient</span>
       <input
         className="addr-input small"
         value={to}
         placeholder="0x… recipient"
+        title="Address to grant to / revoke from (defaults to the subject above)"
         onChange={(e) => {
           setTo(e.target.value.trim());
           setTouched(true);
