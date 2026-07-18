@@ -399,6 +399,19 @@ select {
   color: var(--muted);
 }
 
+.explorer-link {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--muted);
+  white-space: nowrap;
+}
+
+.explorer-link:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 .tx-log {
   position: fixed;
   right: 16px;

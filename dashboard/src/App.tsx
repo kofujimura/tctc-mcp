@@ -289,6 +289,17 @@ export default function App() {
               does not declare IERC7303 ({IERC7303_ID})
             </span>
           )}
+          {isAddress(targetInput.trim()) && (
+            <a
+              className="explorer-link"
+              href={`${preset.explorer}/address/${targetInput.trim()}`}
+              target="_blank"
+              rel="noreferrer"
+              title={`View this contract on ${new URL(preset.explorer).hostname}`}
+            >
+              {new URL(preset.explorer).hostname} ↗
+            </a>
+          )}
         </div>
         {support === "yes" && (
           <div className="row">
