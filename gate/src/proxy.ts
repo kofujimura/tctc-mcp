@@ -2,7 +2,13 @@ import type { Readable, Writable } from "node:stream";
 import { appendFile } from "node:fs";
 import type { GateConfig } from "./config.js";
 import type { Policy } from "./policy.js";
-import { denyResult, META_NS, type AdmissionVerdict, type MissingRole } from "./admission.js";
+import {
+  denyResult,
+  maskSecrets,
+  META_NS,
+  type AdmissionVerdict,
+  type RoleObservation,
+} from "./admission.js";
 import { isCoreUnavailable } from "./admission.js";
 
 type Json = Record<string, unknown>;
@@ -10,7 +16,7 @@ type Json = Record<string, unknown>;
 /** What the proxy needs from the admission layer (injectable for tests). */
 export interface AdmissionLike {
   check(roles: string[]): Promise<AdmissionVerdict>;
-  grantUrl(missing: MissingRole[]): string;
+  grantUrl(missing: { role: string }[]): string;
 }
 
 const GATE_TOOLS = [
@@ -22,22 +28,31 @@ const GATE_TOOLS = [
   },
 ];
 
+const CHECK_FAILED_TEXT =
+  "TCTC_CHECK_FAILED: the role verdict is indeterminate. tctc-gate fails closed; details are in the gate's own log.";
+
 /**
- * Newline-delimited JSON-RPC splitter (MCP stdio framing). Unparsable lines
- * are forwarded verbatim: the gate only interprets what it must, and a
- * malformed line is the wrapped server's error to report, not ours to eat.
+ * Newline-delimited JSON-RPC splitter (MCP stdio framing). Accumulates raw
+ * bytes and decodes only complete lines, so multi-byte UTF-8 sequences that
+ * straddle chunk boundaries are never corrupted. Unparsable lines are
+ * forwarded verbatim: the gate only interprets what it must.
  */
-function lineSplitter(onLine: (line: string) => void): (chunk: Buffer) => void {
-  let buffer = "";
-  return (chunk: Buffer) => {
-    buffer += chunk.toString("utf8");
+function lineSplitter(onLine: (line: string) => void): (chunk: Buffer | string) => void {
+  let buffer: Buffer = Buffer.alloc(0);
+  return (chunk: Buffer | string) => {
+    const incoming: Buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, "utf8");
+    buffer = buffer.length === 0 ? incoming : (Buffer.concat([buffer, incoming]) as Buffer);
     let idx: number;
-    while ((idx = buffer.indexOf("\n")) >= 0) {
-      const line = buffer.slice(0, idx).replace(/\r$/, "");
-      buffer = buffer.slice(idx + 1);
+    while ((idx = buffer.indexOf(0x0a)) >= 0) {
+      const line = buffer.subarray(0, idx).toString("utf8").replace(/\r$/, "");
+      buffer = buffer.subarray(idx + 1);
       if (line.trim() !== "") onLine(line);
     }
   };
+}
+
+interface Flight {
+  cancelled: boolean;
 }
 
 export interface GateProxyOptions {
@@ -48,14 +63,16 @@ export interface GateProxyOptions {
   clientOut: Writable;  // to the MCP client
   serverIn: Writable;   // to the wrapped server (its stdin)
   serverOut: Readable;  // from the wrapped server (its stdout)
-  log?: (line: string) => void; // human diagnostics (stderr)
+  log?: (line: string) => void; // human diagnostics (stderr); already masked
 }
 
 export class GateProxy {
   private pendingInitialize = new Set<string | number>();
   private pendingToolsList = new Map<string | number, { firstPage: boolean }>();
-  /** tools/call requests whose admission check is still running. */
-  private inFlightChecks = new Map<string | number, { cancelled: boolean }>();
+  /** tools/call (and status) requests whose admission check is still running. */
+  private inFlightChecks = new Map<string | number, Flight>();
+  /** forwarded tools/call requests awaiting the upstream result (for audit). */
+  private pendingForwards = new Map<string | number, { entry: Record<string, unknown>; start: number }>();
 
   constructor(private readonly o: GateProxyOptions) {}
 
@@ -69,7 +86,12 @@ export class GateProxy {
   private fromClient(line: string): void {
     let msg: Json;
     try {
-      msg = JSON.parse(line) as Json;
+      const parsed: unknown = JSON.parse(line);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        this.o.serverIn.write(line + "\n"); // valid JSON, not a message — upstream's problem
+        return;
+      }
+      msg = parsed as Json;
     } catch {
       this.o.serverIn.write(line + "\n");
       return;
@@ -109,7 +131,8 @@ export class GateProxy {
       const rid = ((msg.params ?? {}) as Json).requestId as string | number | undefined;
       if (rid !== undefined && this.inFlightChecks.has(rid)) {
         // The wrapped server never saw this request: abort the check,
-        // forward nothing, respond nothing (GATE_SPEC §5.3).
+        // forward nothing, respond nothing (GATE_SPEC §5.3). The underlying
+        // RPC read is not aborted in v1; its result is discarded.
         this.inFlightChecks.get(rid)!.cancelled = true;
         return;
       }
@@ -122,19 +145,22 @@ export class GateProxy {
     const name = String(params.name ?? "");
 
     if (name === "tctc_gate_status") {
-      void this.answerGateStatus(id);
+      const flight: Flight = { cancelled: false };
+      this.inFlightChecks.set(id, flight);
+      void this.answerGateStatus(id, flight);
       return;
     }
     if (name.startsWith("tctc_gate_")) {
       this.respond(id, denyResult("TCTC_NAME_COLLISION", name, this.o.config, {
         text: `TCTC_NAME_COLLISION: "${name}" is in tctc-gate's reserved namespace; the wrapped server's tool of this name is shadowed.`,
       }));
+      this.audit({ tool: name, verdict: "deny", code: "TCTC_NAME_COLLISION" });
       return;
     }
 
     const resolution = this.o.policy.resolve(name);
     if (resolution.kind === "public") {
-      this.forwardToServer(msg);
+      this.forwardAudited(msg, id, { tool: name, verdict: "allow", code: "PUBLIC" });
       return;
     }
     if (resolution.kind === "unmapped") {
@@ -146,71 +172,99 @@ export class GateProxy {
       return;
     }
 
-    const flight = { cancelled: false };
+    const flight: Flight = { cancelled: false };
     this.inFlightChecks.set(id, flight);
     void this.o.admission
       .check(resolution.roles)
       .then((verdict) => {
-        this.inFlightChecks.delete(id);
-        if (flight.cancelled) return; // aborted: never forwarded, no response
+        if (!this.settleFlight(id, flight)) return;
         if (verdict.allowed) {
-          this.audit({ tool: name, verdict: "allow", roles: resolution.roles, observedBlockNumber: verdict.observedBlockNumber, cacheHit: verdict.cacheHit });
-          this.forwardToServer(msg);
+          this.forwardAudited(msg, id, {
+            tool: name,
+            verdict: "allow",
+            roles: resolution.roles,
+            observedBlockNumber: verdict.observedBlockNumber,
+            cacheHit: verdict.cacheHit,
+            cacheExpiresAt: verdict.cacheExpiresAt,
+          });
           return;
         }
         const grantUrl = this.o.admission.grantUrl(verdict.missing);
         const missingNames = verdict.missing.map((m) => m.role).join(", ");
         this.respond(id, denyResult("TCTC_ROLE_DENIED", name, this.o.config, {
           text: `TCTC_ROLE_DENIED: ${name} requires ${missingNames} on ${this.o.config.target}. Ask your principal to grant it: ${grantUrl}`,
-          missing: verdict.missing,
+          missing: verdict.missing.map((m) => ({ ...m, target: this.o.config.target })),
           observedAt: verdict.observedAt,
           observedBlockNumber: verdict.observedBlockNumber,
           cacheHit: verdict.cacheHit,
           cacheExpiresAt: verdict.cacheExpiresAt,
           grantUrl,
         }));
-        this.audit({ tool: name, verdict: "deny", code: "TCTC_ROLE_DENIED", roles: resolution.roles, missing: verdict.missing.map((m) => m.role), observedBlockNumber: verdict.observedBlockNumber, cacheHit: verdict.cacheHit });
+        this.audit({
+          tool: name,
+          verdict: "deny",
+          code: "TCTC_ROLE_DENIED",
+          roles: resolution.roles,
+          missing: verdict.missing.map((m) => m.role),
+          observedBlockNumber: verdict.observedBlockNumber,
+          cacheHit: verdict.cacheHit,
+          cacheExpiresAt: verdict.cacheExpiresAt,
+        });
       })
       .catch((e) => {
-        this.inFlightChecks.delete(id);
-        if (flight.cancelled) return;
-        const reason = isCoreUnavailable(e) ? (e as Error).message : `unexpected error: ${(e as Error).message}`;
-        this.respond(id, denyResult("TCTC_CHECK_FAILED", name, this.o.config, {
-          text: `TCTC_CHECK_FAILED: the role verdict is indeterminate (${reason}). tctc-gate fails closed.`,
-        }));
-        this.audit({ tool: name, verdict: "deny", code: "TCTC_CHECK_FAILED" });
+        if (!this.settleFlight(id, flight)) return;
+        this.reportCheckFailure(name, e);
+        this.respond(id, denyResult("TCTC_CHECK_FAILED", name, this.o.config, { text: CHECK_FAILED_TEXT }));
       });
   }
 
-  private async answerGateStatus(id: string | number): Promise<void> {
+  /** True iff this flight still owns the id (id reuse) and wasn't cancelled. */
+  private settleFlight(id: string | number, flight: Flight): boolean {
+    if (this.inFlightChecks.get(id) !== flight) return false; // superseded — drop
+    this.inFlightChecks.delete(id);
+    return !flight.cancelled;
+  }
+
+  /** Client gets a fixed message; the masked detail goes to log + audit only. */
+  private reportCheckFailure(tool: string, e: unknown): void {
+    const raw = e instanceof Error ? e.message : String(e);
+    const masked = maskSecrets(
+      isCoreUnavailable(e) ? raw : `unexpected error: ${raw}`,
+      this.o.config.chain.rpcUrl,
+    );
+    this.o.log?.(`tctc-gate: check failed for "${tool}": ${masked}`);
+    this.audit({ tool, verdict: "deny", code: "TCTC_CHECK_FAILED", detail: masked });
+  }
+
+  private async answerGateStatus(id: string | number, flight: Flight): Promise<void> {
     const roles = this.o.policy.allRoles();
     try {
       const verdict = roles.length > 0 ? await this.o.admission.check(roles) : undefined;
-      const held = roles.filter((r) => !verdict?.missing.some((m) => m.role === r));
+      if (!this.settleFlight(id, flight)) return;
+      const observations: RoleObservation[] = verdict?.roles ?? [];
+      const held = observations.filter((o) => o.held).map((o) => o.role);
+      const missing = observations.filter((o) => !o.held).map((o) => o.role);
       const meta = {
         subject: this.o.config.subject.address,
         identity: this.o.config.subject.mode,
         target: this.o.config.target,
         chainId: this.o.config.chain.chainId,
-        roles: roles.map((r) => ({
-          role: r,
-          held: !verdict?.missing.some((m) => m.role === r),
-          evidence: verdict?.missing.find((m) => m.role === r)?.evidence,
-        })),
+        roles: observations,
         observedAt: verdict?.observedAt,
         observedBlockNumber: verdict?.observedBlockNumber,
         cacheHit: verdict?.cacheHit,
+        cacheExpiresAt: verdict?.cacheExpiresAt,
         public: this.o.config.gate.public,
       };
       const text =
         `tctc-gate status — subject ${this.o.config.subject.address} (identity: configured) on ${this.o.config.target} ` +
         `(chainId ${this.o.config.chain.chainId}), block ${verdict?.observedBlockNumber ?? "n/a"}: ` +
-        (roles.length === 0 ? "no roles configured." : `held: [${held.join(", ") || "none"}]; missing: [${verdict?.missing.map((m) => m.role).join(", ") || "none"}].`);
+        (roles.length === 0 ? "no roles configured." : `held: [${held.join(", ") || "none"}]; missing: [${missing.join(", ") || "none"}].`);
       this.respond(id, { content: [{ type: "text", text }], _meta: { [META_NS]: meta } });
     } catch (e) {
-      this.respond(id, denyResult("TCTC_CHECK_FAILED", "tctc_gate_status", this.o.config, {
-        text: `TCTC_CHECK_FAILED: ${(e as Error).message}`,
-      }));
+      if (!this.settleFlight(id, flight)) return;
+      this.reportCheckFailure("tctc_gate_status", e);
+      this.respond(id, denyResult("TCTC_CHECK_FAILED", "tctc_gate_status", this.o.config, { text: CHECK_FAILED_TEXT }));
     }
   }
 
@@ -219,22 +273,34 @@ export class GateProxy {
   private fromServer(line: string): void {
     let msg: Json;
     try {
-      msg = JSON.parse(line) as Json;
+      const parsed: unknown = JSON.parse(line);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        this.o.clientOut.write(line + "\n");
+        return;
+      }
+      msg = parsed as Json;
     } catch {
       this.o.clientOut.write(line + "\n");
       return;
     }
     const id = msg.id as string | number | undefined;
-    if (id !== undefined && msg.method === undefined && this.pendingInitialize.has(id)) {
-      this.pendingInitialize.delete(id);
-      this.forwardToClient(this.decorateInitialize(msg));
-      return;
-    }
-    const listMark = id !== undefined && msg.method === undefined ? this.pendingToolsList.get(id) : undefined;
-    if (listMark) {
-      this.pendingToolsList.delete(id!);
-      this.forwardToClient(this.decorateToolsList(msg, listMark.firstPage));
-      return;
+    if (id !== undefined && msg.method === undefined) {
+      const forward = this.pendingForwards.get(id);
+      if (forward) {
+        this.pendingForwards.delete(id);
+        this.audit({ ...forward.entry, forwardedMs: Date.now() - forward.start });
+      }
+      if (this.pendingInitialize.has(id)) {
+        this.pendingInitialize.delete(id);
+        this.forwardToClient(this.decorateInitialize(msg));
+        return;
+      }
+      const listMark = this.pendingToolsList.get(id);
+      if (listMark) {
+        this.pendingToolsList.delete(id);
+        this.forwardToClient(this.decorateToolsList(msg, listMark.firstPage));
+        return;
+      }
     }
     this.forwardToClient(msg);
   }
@@ -297,6 +363,12 @@ export class GateProxy {
 
   private forwardToServer(msg: Json): void {
     this.o.serverIn.write(JSON.stringify(msg) + "\n");
+  }
+
+  /** Forward a tools/call and emit its audit line once the upstream answers. */
+  private forwardAudited(msg: Json, id: string | number, entry: Record<string, unknown>): void {
+    this.pendingForwards.set(id, { entry, start: Date.now() });
+    this.forwardToServer(msg);
   }
 
   private forwardToClient(msg: Json): void {

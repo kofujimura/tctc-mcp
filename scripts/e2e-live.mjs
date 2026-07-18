@@ -12,7 +12,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const SERVER = ["dist/index.js", "--config", "examples/config.sepolia.json", "--no-cache"];
+const SERVER = ["dist/src/index.js", "--config", "examples/config.sepolia.json", "--no-cache"];
 
 async function connect(env) {
   const transport = new StdioClientTransport({

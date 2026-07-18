@@ -155,6 +155,30 @@ export async function discoverBindings(
   }
 }
 
+/** The target contract's own answer — the same logic its modifier enforces. */
+export async function hasRole(
+  client: PublicClient,
+  target: Address,
+  hash: `0x${string}`,
+  subject: Address,
+  blockNumber?: bigint,
+): Promise<boolean> {
+  try {
+    return await client.readContract({
+      address: target,
+      abi: ierc7303Abi,
+      functionName: "hasRole",
+      args: [hash, subject],
+      ...(blockNumber !== undefined ? { blockNumber } : {}),
+    });
+  } catch (e) {
+    throw new CoreError(
+      "CHAIN_UNAVAILABLE",
+      `hasRole(${hash}, ${subject}) on ${target} failed: ${(e as Error).message}`,
+    );
+  }
+}
+
 export interface RoleEvidence {
   standard: "erc721" | "erc1155";
   contract: Address;

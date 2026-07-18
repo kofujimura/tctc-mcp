@@ -199,7 +199,7 @@ holds what, all from a browser wallet.*
 ```bash
 git clone https://github.com/kofujimura/tctc-mcp.git && cd tctc-mcp
 npm install && npm run build
-node dist/index.js --config examples/config.sepolia.agent.json
+node dist/src/index.js --config examples/config.sepolia.agent.json
 
 npm test                  # unit tests (vitest)
 node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client

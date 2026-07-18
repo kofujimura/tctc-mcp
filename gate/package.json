@@ -2,7 +2,7 @@
   "name": "tctc-gate",
   "version": "0.1.0-dev",
   "description": "Token-gate any existing MCP server with ERC-7303 roles: grant is a mint, revoke is a burn — no server modification.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "private": true,
   "bin": {

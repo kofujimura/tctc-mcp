@@ -1,7 +1,9 @@
 # tctc-gate — Design Specification (v1 draft, revised)
 
-**Status: design draft, 2026-07-18, revised through two rounds of
-independent cross-model review. Nothing here is implemented yet.**
+**Status: M1+M2 implemented at `gate/` (2026-07-18, hardened after a
+third cross-model review round: UTF-8-safe framing, masked RPC errors,
+shared core actually consumed by both products, per-role observations,
+id-reuse guards, public-call auditing). M3+ items below remain design.**
 
 `tctc-gate` adds ERC-7303 token-gating to **existing, unmodified MCP
 servers**. It is a transparent MCP proxy: the agent talks to the gate, the
@@ -283,8 +285,13 @@ resolve policy → public? forward
 ```
 
 If `notifications/cancelled` arrives for a request still in its role
-check, the gate aborts the check and never forwards. Cancellation of an
-already-forwarded request passes through (ids are unchanged).
+check, the gate aborts the check and never forwards (in v1 the
+underlying RPC read is not aborted; its result is discarded — the
+observable contract is unchanged). Cancellation of an already-forwarded
+request passes through (ids are unchanged). Denies built from a failed
+check carry a **fixed client-facing message**; the underlying error is
+masked (RPC URL and any embedded credentials redacted) and goes to the
+gate's stderr and audit log only.
 
 **Deny wire shape.** A deny is a normal MCP tool result (`isError:
 true`), never a protocol error, and never `structuredContent` — a
@@ -425,7 +432,7 @@ authorization — a cached allow is a real permission extension. Hence:
   regex `${[A-Za-z_][A-Za-z0-9_]*}` enforced), chainId pinning, env
   allowlisting.
 - **MCP conformance**: paginated `tools/list` with gate tools appearing
-  exactly once on the final page; `tctc_gate_` collision shadowing;
+  exactly once on the first page; `tctc_gate_` collision shadowing;
   cancellation during role check → no forward; id passthrough for
   progress/cancellation; upstream `list_changed` forwarding.
 - **E2E (scripts/e2e-gate.mjs)**: gate wrapping a version-pinned

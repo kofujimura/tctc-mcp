@@ -1,38 +1,28 @@
-import {
-  keccak256,
-  stringToHex,
-  parseAbi,
-  ContractFunctionExecutionError,
-  type Address,
-} from "viem";
+/**
+ * IERC7303 discovery — thin adapter over the shared authorization core
+ * (core/src). tctc-mcp and tctc-gate consume the same implementation
+ * (GATE_SPEC §8); this module only adds the Context plumbing (chain
+ * registry, discovery cache) and maps CoreError to ToolError.
+ */
+import type { Address } from "viem";
 import type { Context } from "./context.js";
 import { ToolError } from "./errors.js";
+import {
+  CoreError,
+  IERC7303_INTERFACE_ID,
+  roleHash,
+  supportsIERC7303 as coreSupportsIERC7303,
+  discoverBindings as coreDiscoverBindings,
+  hasRole as coreHasRole,
+  type DiscoveredBindings,
+} from "../core/src/index.js";
 
-/**
- * ERC-165 interface id of IERC7303 (XOR of the selectors of hasRole,
- * getERC721ControlTokens, getERC1155ControlTokens).
- */
-export const IERC7303_INTERFACE_ID = "0x4ee69337" as const;
+export { IERC7303_INTERFACE_ID, roleHash };
+export type { DiscoveredBindings };
 
-const ierc7303Abi = parseAbi([
-  "function supportsInterface(bytes4 interfaceId) view returns (bool)",
-  "function hasRole(bytes32 role, address account) view returns (bool)",
-  "function getERC721ControlTokens(bytes32 role) view returns (address[] contractIds)",
-  "function getERC1155ControlTokens(bytes32 role) view returns (address[] contractIds, uint256[] typeIds)",
-]);
-
-/** Control-token bindings read from a target contract via IERC7303. */
-export interface DiscoveredBindings {
-  erc721: Address[];
-  erc1155: { address: Address; typeId: bigint }[];
-}
-
-/** "MINTER_ROLE" → keccak256 of the name; a 32-byte 0x value is the hash itself. */
-export function roleHash(nameOrHash: string): `0x${string}` {
-  if (/^0x[0-9a-fA-F]{64}$/.test(nameOrHash)) {
-    return nameOrHash.toLowerCase() as `0x${string}`;
-  }
-  return keccak256(stringToHex(nameOrHash));
+function rethrow(e: unknown): never {
+  if (e instanceof CoreError) throw new ToolError(e.code, e.message);
+  throw e;
 }
 
 /**
@@ -45,20 +35,10 @@ export async function supportsIERC7303(
   chain: string,
   target: Address,
 ): Promise<boolean> {
-  const client = ctx.chains.public(chain);
   try {
-    return await client.readContract({
-      address: target,
-      abi: ierc7303Abi,
-      functionName: "supportsInterface",
-      args: [IERC7303_INTERFACE_ID],
-    });
+    return await coreSupportsIERC7303(ctx.chains.public(chain), target);
   } catch (e) {
-    if (e instanceof ContractFunctionExecutionError) return false;
-    throw new ToolError(
-      "CHAIN_UNAVAILABLE",
-      `supportsInterface probe on ${target} (${chain}) failed: ${(e as Error).message}`,
-    );
+    rethrow(e);
   }
 }
 
@@ -72,42 +52,12 @@ export async function discoverBindings(
   const cacheKey = `${chain}:${target.toLowerCase()}:${hash}`;
   const cached = ctx.discovery.get(cacheKey);
   if (cached !== undefined) return cached;
-
-  if (!(await supportsIERC7303(ctx, chain, target))) {
-    throw new ToolError(
-      "NOT_IERC7303",
-      `${target} (${chain}) does not report support for IERC7303 ` +
-        `(ERC-165 interfaceId ${IERC7303_INTERFACE_ID})`,
-    );
-  }
-
-  const client = ctx.chains.public(chain);
   try {
-    const [erc721, [contractIds, typeIds]] = await Promise.all([
-      client.readContract({
-        address: target,
-        abi: ierc7303Abi,
-        functionName: "getERC721ControlTokens",
-        args: [hash],
-      }),
-      client.readContract({
-        address: target,
-        abi: ierc7303Abi,
-        functionName: "getERC1155ControlTokens",
-        args: [hash],
-      }),
-    ]);
-    const bindings: DiscoveredBindings = {
-      erc721: [...erc721],
-      erc1155: contractIds.map((address, i) => ({ address, typeId: typeIds[i] })),
-    };
+    const bindings = await coreDiscoverBindings(ctx.chains.public(chain), target, hash);
     ctx.discovery.set(cacheKey, bindings);
     return bindings;
   } catch (e) {
-    throw new ToolError(
-      "CHAIN_UNAVAILABLE",
-      `IERC7303 getters on ${target} (${chain}) failed: ${(e as Error).message}`,
-    );
+    rethrow(e);
   }
 }
 
@@ -119,18 +69,9 @@ export async function hasRoleOnTarget(
   hash: `0x${string}`,
   subject: Address,
 ): Promise<boolean> {
-  const client = ctx.chains.public(chain);
   try {
-    return await client.readContract({
-      address: target,
-      abi: ierc7303Abi,
-      functionName: "hasRole",
-      args: [hash, subject],
-    });
+    return await coreHasRole(ctx.chains.public(chain), target, hash, subject);
   } catch (e) {
-    throw new ToolError(
-      "CHAIN_UNAVAILABLE",
-      `hasRole(${hash}, ${subject}) on ${target} (${chain}) failed: ${(e as Error).message}`,
-    );
+    rethrow(e);
   }
 }

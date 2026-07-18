@@ -19,16 +19,25 @@ export type DenyCode =
   | "TCTC_NAME_COLLISION"
   | "TCTC_IDENTITY_UNPROVEN";
 
-export interface MissingRole {
+/** Per-role observation: verdict + the exact state it was derived from.
+ *  Cached and live roles in one check carry their own block numbers —
+ *  a cached role must never appear to have been observed at a live block. */
+export interface RoleObservation {
   role: string;
   roleHash: `0x${string}`;
-  target: Address;
+  held: boolean;
   evidence: RoleEvidence[];
+  observedAt: string;
+  observedBlockNumber: string;
+  cacheHit: boolean;
+  cacheExpiresAt?: string;
 }
 
 export interface AdmissionVerdict {
   allowed: boolean;
-  missing: MissingRole[];
+  roles: RoleObservation[];
+  missing: RoleObservation[];
+  /** Live observation when any live read happened; otherwise the newest cached one. */
   observedAt: string;
   observedBlockNumber?: string;
   cacheHit: boolean;
@@ -71,7 +80,7 @@ export class AdmissionController {
     const actual = await this.client.getChainId();
     if (actual !== this.config.chain.chainId) {
       throw new Error(
-        `RPC ${this.config.chain.rpcUrl} serves chainId ${actual}, config says ${this.config.chain.chainId} — refusing to serve`,
+        `RPC endpoint serves chainId ${actual}, config says ${this.config.chain.chainId} — refusing to serve`,
       );
     }
   }
@@ -90,24 +99,30 @@ export class AdmissionController {
     const subject = this.config.subject.address as Address;
     const wanted = roles.map((name) => ({ name, hash: roleHash(name) }));
 
-    const fromCache = new Map<`0x${string}`, { verdict: CachedRoleVerdict; expiresInMs?: number }>();
+    const observations = new Map<`0x${string}`, RoleObservation>();
     const toCheck: { name: string; hash: `0x${string}` }[] = [];
     for (const w of wanted) {
       const key = `${subject.toLowerCase()}:${w.hash}`;
-      const allow = this.allowCache.get(key);
-      if (allow) {
-        fromCache.set(w.hash, { verdict: allow, expiresInMs: this.allowCache.expiresInMs(key) });
-        continue;
-      }
-      const deny = this.denyCache.get(key);
-      if (deny) {
-        fromCache.set(w.hash, { verdict: deny, expiresInMs: this.denyCache.expiresInMs(key) });
+      const cached = this.allowCache.get(key) ?? this.denyCache.get(key);
+      if (cached) {
+        const inCache = cached.hasRole ? this.allowCache : this.denyCache;
+        const leftMs = inCache.expiresInMs(key);
+        observations.set(w.hash, {
+          role: w.name,
+          roleHash: w.hash,
+          held: cached.hasRole,
+          evidence: cached.evidence,
+          observedAt: cached.observedAt,
+          observedBlockNumber: cached.observedBlockNumber,
+          cacheHit: true,
+          cacheExpiresAt: leftMs !== undefined ? new Date(Date.now() + leftMs).toISOString() : undefined,
+        });
         continue;
       }
       toCheck.push(w);
     }
 
-    let liveObserved: { observedAt: string; blockNumber: string } | undefined;
+    let live: { observedAt: string; blockNumber: string } | undefined;
     if (toCheck.length > 0) {
       const withBindings = await Promise.all(
         toCheck.map(async (w) => ({ ...w, bindings: await this.bindingsFor(w.hash) })),
@@ -118,56 +133,48 @@ export class AdmissionController {
         subject,
         withBindings.map((w) => ({ hash: w.hash, bindings: w.bindings })),
       );
-      liveObserved = { observedAt: pinned.observedAt, blockNumber: pinned.blockNumber.toString() };
+      live = { observedAt: pinned.observedAt, blockNumber: pinned.blockNumber.toString() };
       for (const v of pinned.verdicts) {
+        const name = toCheck.find((w) => w.hash === v.role)!.name;
         const entry: CachedRoleVerdict = {
           hasRole: v.hasRole,
           evidence: v.evidence,
           observedAt: pinned.observedAt,
           observedBlockNumber: pinned.blockNumber.toString(),
         };
-        const key = `${subject.toLowerCase()}:${v.role}`;
-        (v.hasRole ? this.allowCache : this.denyCache).set(key, entry);
-        fromCache.set(v.role, { verdict: entry });
-      }
-    }
-
-    const missing: MissingRole[] = [];
-    let cacheHit = toCheck.length < wanted.length;
-    let earliestCacheExpiry: number | undefined;
-    for (const w of wanted) {
-      const got = fromCache.get(w.hash)!;
-      if (got.expiresInMs !== undefined) {
-        earliestCacheExpiry = Math.min(earliestCacheExpiry ?? Infinity, got.expiresInMs);
-      }
-      if (!got.verdict.hasRole) {
-        missing.push({
-          role: w.name,
-          roleHash: w.hash,
-          target: this.config.target as Address,
-          evidence: got.verdict.evidence,
+        (v.hasRole ? this.allowCache : this.denyCache).set(`${subject.toLowerCase()}:${v.role}`, entry);
+        observations.set(v.role, {
+          role: name,
+          roleHash: v.role,
+          held: v.hasRole,
+          evidence: v.evidence,
+          observedAt: pinned.observedAt,
+          observedBlockNumber: pinned.blockNumber.toString(),
+          cacheHit: false,
         });
       }
     }
 
-    const observed = liveObserved ?? {
-      observedAt: [...fromCache.values()][0]?.verdict.observedAt ?? new Date().toISOString(),
-      blockNumber: [...fromCache.values()][0]?.verdict.observedBlockNumber ?? "unknown",
-    };
+    const ordered = wanted.map((w) => observations.get(w.hash)!);
+    const missing = ordered.filter((o) => !o.held);
+    const cachedOnes = ordered.filter((o) => o.cacheHit);
+    const earliestExpiry = cachedOnes
+      .map((o) => o.cacheExpiresAt)
+      .filter((x): x is string => x !== undefined)
+      .sort()[0];
+    const newestCached = [...cachedOnes].sort((a, b) => a.observedAt.localeCompare(b.observedAt)).at(-1);
     return {
       allowed: missing.length === 0,
+      roles: ordered,
       missing,
-      observedAt: observed.observedAt,
-      observedBlockNumber: observed.blockNumber,
-      cacheHit,
-      cacheExpiresAt:
-        earliestCacheExpiry !== undefined
-          ? new Date(Date.now() + earliestCacheExpiry).toISOString()
-          : undefined,
+      observedAt: live?.observedAt ?? newestCached?.observedAt ?? new Date().toISOString(),
+      observedBlockNumber: live?.blockNumber ?? newestCached?.observedBlockNumber,
+      cacheHit: cachedOnes.length > 0,
+      cacheExpiresAt: earliestExpiry,
     };
   }
 
-  grantUrl(missing: MissingRole[]): string {
+  grantUrl(missing: { role: string }[]): string {
     const u = new URL(this.config.grantUrlBase);
     u.searchParams.set("chain", this.config.chain.key);
     u.searchParams.set("target", this.config.target);
@@ -184,7 +191,7 @@ export function denyResult(
   config: GateConfig,
   detail: {
     text: string;
-    missing?: MissingRole[];
+    missing?: (RoleObservation & { target: string })[];
     observedAt?: string;
     observedBlockNumber?: string;
     cacheHit?: boolean;
@@ -213,4 +220,13 @@ export function denyResult(
 
 export function isCoreUnavailable(e: unknown): boolean {
   return e instanceof CoreError;
+}
+
+/**
+ * Strip anything that could identify the RPC endpoint (or any URL, which
+ * may embed an API key) before a diagnostic leaves the gate process
+ * (GATE_SPEC review: raw RPC errors must not reach the agent).
+ */
+export function maskSecrets(text: string, rpcUrl: string): string {
+  return text.split(rpcUrl).join("[rpc]").replace(/https?:\/\/[^\s"')\]]+/g, "[url]");
 }
