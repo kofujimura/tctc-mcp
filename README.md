@@ -130,6 +130,17 @@ Working example: the `TIMED_MINTER_ROLE` in
 live by `scripts/e2e-expiry.mjs` (grant for 75 s → watch it expire with
 no further transaction).
 
+## Human dashboard
+
+**Live: <https://tctc-mcp.vercel.app/>** — while tctc-mcp exposes ERC-7303
+roles to AI agents, the [TCTC Dashboard](dashboard/) exposes the same
+on-chain state to the humans who manage them: inspect any IERC7303 target,
+watch `hasRole` verdicts and per-control-token `balanceOf` evidence live,
+grant/revoke as the issuer (with timed grants and countdowns for expiring
+control tokens), and deploy new control-token collections straight from a
+browser wallet. Two clients of one source of truth: the chain. See
+[dashboard/README.md](dashboard/README.md) for details and try-it links.
+
 ## Documents
 
 - [docs/CONCEPT.md](docs/CONCEPT.md) — background and rationale: TCTC as
@@ -191,6 +202,8 @@ node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client
 
 ## Related
 
+- Human dashboard (this repo, [`dashboard/`](dashboard/)):
+  <https://tctc-mcp.vercel.app/>
 - npm package: <https://www.npmjs.com/package/tctc-mcp>
 - Agent skill (teaches agents to use TCTC safely; install with
   `npx skills add kofujimura/tctc-skills`):
