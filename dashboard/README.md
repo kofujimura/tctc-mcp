@@ -11,6 +11,15 @@ A role is a token. **Grant is a mint. Revoke is a burn.** This page makes that v
 - **Check any subject** — an agent wallet, an ERC-6551 TBA, a user address. Shows the target's own `hasRole()` verdict plus the per-control-token `balanceOf` evidence behind it, live-refreshing every 12 seconds.
 - **Issuer actions** — when the connected wallet is the `owner()` of a control token, Grant (mint) and Revoke (`burnByIssuer`, the kill switch) buttons appear inline. For `ExpiringControlTokens`-style contracts (detected by `expiresAt()`), grants are timed and a countdown is shown; expiry revokes the role gaslessly with no further transaction.
 - **Shareable URLs** — `?chain=sepolia&target=0x…&subject=0x…` restores the whole view.
+- **Issue control tokens** — deploy your own soulbound certificate collection straight from the
+  browser wallet (standard, or auto-expiring with timed grants), then grant/revoke on it
+  directly — no target contract needed to start operating. This is the innermost layer of the
+  TCTC onion: issuance governed by `onlyOwner` alone; outer layers (token-gated issuance) can
+  be added later. The deployed bytecode is byte-identical to the Etherscan-verified reference
+  deployments, so explorers auto-verify each new deployment by similar-bytecode match. Note:
+  binding a new collection to an *existing* target requires that target to expose a
+  binding-admin function — new targets bind at deploy time; one collection can control many
+  targets.
 
 ## Try it (Sepolia)
 

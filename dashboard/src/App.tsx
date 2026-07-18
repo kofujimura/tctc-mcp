@@ -17,6 +17,7 @@ import {
   type RoleInfo,
 } from "./lib/core";
 import { RoleCard } from "./components/RoleCard";
+import { DeployCT } from "./components/DeployCT";
 import type { TxEntry } from "./components/IssuerActions";
 
 type Support = "idle" | "checking" | "yes" | "no";
@@ -376,6 +377,15 @@ export default function App() {
           ))}
         </section>
       )}
+
+      <DeployCT
+        chain={chain}
+        client={client}
+        account={account}
+        explorer={preset.explorer}
+        pushTx={pushTx}
+        updateTx={updateTx}
+      />
 
       {txLog.length > 0 && (
         <div className="tx-log">

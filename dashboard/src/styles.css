@@ -412,6 +412,15 @@ select {
   border-bottom-color: var(--accent);
 }
 
+.addr-input.tiny {
+  width: 64px;
+  flex: 0 0 auto;
+}
+
+.managed-ct {
+  margin-top: 8px;
+}
+
 .tx-log {
   position: fixed;
   right: 16px;
