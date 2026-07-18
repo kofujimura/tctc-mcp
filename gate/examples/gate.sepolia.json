@@ -1,0 +1,24 @@
+{
+  "chain": {
+    "key": "sepolia",
+    "chainId": 11155111,
+    "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com"
+  },
+  "target": "0x873f0bf314A1e0B566015CEf9dA37783A729Fd02",
+  "subject": {
+    "mode": "configured",
+    "address": "0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03"
+  },
+  "gate": {
+    "public": ["add"],
+    "tools": {
+      "echo": ["MINTER_ROLE"],
+      "shout": ["MINTER_ROLE", "MEMBER_ROLE"]
+    }
+  },
+  "listMode": "annotate",
+  "server": {
+    "command": "node",
+    "args": ["test/fixtures/mini-server.mjs"]
+  }
+}
