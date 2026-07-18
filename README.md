@@ -141,6 +141,13 @@ control tokens), and deploy new control-token collections straight from a
 browser wallet. Two clients of one source of truth: the chain. See
 [dashboard/README.md](dashboard/README.md) for details and try-it links.
 
+[![TCTC Dashboard — inspecting a target's roles, with live hasRole verdicts and issuer grant/revoke controls](docs/tctc-mcp-dashboard.png)](https://tctc-mcp.vercel.app/)
+
+*Not just for AI-agent delegation: any ERC-7303 contract works, so the
+dashboard doubles as a general-purpose on-chain permission manager —
+issue certificate collections, grant and revoke roles, and audit who
+holds what, all from a browser wallet.*
+
 ## Documents
 
 - [docs/CONCEPT.md](docs/CONCEPT.md) — background and rationale: TCTC as
