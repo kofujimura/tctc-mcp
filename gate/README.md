@@ -15,7 +15,7 @@ agent (MCP client) ──stdio──▶ tctc-gate ──stdio──▶ wrapped M
 ```sh
 # from the repo root
 cd gate && npm run build
-node dist/gate/src/index.js --config examples/gate.sepolia.json
+node dist/index.js --config examples/gate.sepolia.json
 ```
 
 `examples/gate.sepolia.json` wraps the test fixture server and gates its `echo` tool behind `MINTER_ROLE` on the Sepolia demo target. Point your MCP client at the command above; then:

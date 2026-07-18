@@ -18,7 +18,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const SERVER = ["dist/src/index.js", "--config", "examples/config.sepolia.json", "--no-cache"];
+const SERVER = ["dist/index.js", "--config", "examples/config.sepolia.json", "--no-cache"];
 const ECT = "0xb5abB6c060ed287e8B25aD121c8B46eE404fF09b";
 const EXPIRES_IN = 75; // seconds — long enough for inclusion, short enough to watch expire
 

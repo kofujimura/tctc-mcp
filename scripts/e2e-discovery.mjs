@@ -13,7 +13,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const SERVER = ["dist/src/index.js", "--config", "examples/config.sepolia.discovery.json", "--no-cache"];
+const SERVER = ["dist/index.js", "--config", "examples/config.sepolia.discovery.json", "--no-cache"];
 const TARGET = "0x4C0a78803D47154B9C6F42EC4AEbab2D1C94c97D"; // IERC7303-compliant
 const LEGACY = "0xa52fe39D0de852e88488faa34e723E861D0b09BD"; // pre-IERC7303
 const CT = "0x12342A7F0190B3AF3F4b47546D34006EDA54eE0B";

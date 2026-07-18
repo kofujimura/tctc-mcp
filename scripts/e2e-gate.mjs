@@ -42,7 +42,7 @@ writeFileSync(
   }),
 );
 
-const gate = spawn(process.execPath, [join(ROOT, "gate/dist/gate/src/index.js"), "--config", configPath], {
+const gate = spawn(process.execPath, [join(ROOT, "gate/dist/index.js"), "--config", configPath], {
   stdio: ["pipe", "pipe", "inherit"],
 });
 

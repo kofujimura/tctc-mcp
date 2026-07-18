@@ -15,7 +15,7 @@ import {
   discoverBindings as coreDiscoverBindings,
   hasRole as coreHasRole,
   type DiscoveredBindings,
-} from "../core/src/index.js";
+} from "../core/dist/index.js";
 
 export { IERC7303_INTERFACE_ID, roleHash };
 export type { DiscoveredBindings };

@@ -55,6 +55,18 @@ key is only ever read from the `TCTC_ADMIN_PRIVATE_KEY` environment
 variable; configs containing anything that looks like a private key are
 rejected at startup.
 
+### Using tctc-mcp from your own app
+
+The **only supported entry point is the `tctc-mcp` bin** — spawn it via
+`npx --no-install tctc-mcp` (or `node_modules/.bin/tctc-mcp`). Never
+reference the package's `dist/` files directly: they are internal,
+their layout is unversioned, and the package's `exports` field refuses
+deep imports. A minimal MCP-SDK client example (the pattern for a web
+backend) is in
+[examples/client-stdio.mjs](examples/client-stdio.mjs); the release
+pipeline verifies the packed bin end-to-end
+([scripts/verify-pack.mjs](scripts/verify-pack.mjs)).
+
 ## Tools
 
 | Tool | Mode | Purpose |
@@ -199,7 +211,7 @@ holds what, all from a browser wallet.*
 ```bash
 git clone https://github.com/kofujimura/tctc-mcp.git && cd tctc-mcp
 npm install && npm run build
-node dist/src/index.js --config examples/config.sepolia.agent.json
+node dist/index.js --config examples/config.sepolia.agent.json
 
 npm test                  # unit tests (vitest)
 node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client

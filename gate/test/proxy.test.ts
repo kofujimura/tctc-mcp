@@ -7,7 +7,7 @@ import { parseGateConfig, type GateConfig } from "../src/config.js";
 import { Policy } from "../src/policy.js";
 import { GateProxy } from "../src/proxy.js";
 import { META_NS, type AdmissionVerdict, type RoleObservation } from "../src/admission.js";
-import { CoreError, roleHash } from "../../core/src/index.js";
+import { CoreError, roleHash } from "../../core/dist/index.js";
 
 type Json = Record<string, unknown>;
 

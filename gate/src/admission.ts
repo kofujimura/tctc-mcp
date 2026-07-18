@@ -7,7 +7,7 @@ import {
   roleHash,
   type DiscoveredBindings,
   type RoleEvidence,
-} from "../../core/src/index.js";
+} from "../../core/dist/index.js";
 import type { GateConfig } from "./config.js";
 
 export const META_NS = "io.github.kofujimura/tctc-gate";

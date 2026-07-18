@@ -6,13 +6,13 @@
   "type": "module",
   "private": true,
   "bin": {
-    "tctc-gate": "dist/gate/src/index.js"
+    "tctc-gate": "dist/index.js"
   },
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p ../core/tsconfig.json && tsc -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
