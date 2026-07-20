@@ -1,19 +1,42 @@
 {
   "name": "tctc-gate",
-  "version": "0.1.0-dev",
+  "version": "0.1.0",
   "description": "Token-gate any existing MCP server with ERC-7303 roles: grant is a mint, revoke is a burn — no server modification.",
   "license": "Apache-2.0",
+  "author": "Ko Fujimura <ko@fujimura.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kofujimura/tctc-mcp.git",
+    "directory": "gate"
+  },
+  "homepage": "https://github.com/kofujimura/tctc-mcp/tree/main/gate#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "erc-7303",
+    "token-gating",
+    "authorization",
+    "ai-agents",
+    "ethereum"
+  ],
   "type": "module",
-  "private": true,
   "bin": {
     "tctc-gate": "dist/index.js"
   },
+  "exports": "./dist/index.js",
+  "files": [
+    "dist",
+    "examples",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p ../core/tsconfig.json && tsc -p tsconfig.json",
-    "test": "vitest run"
+    "build": "tsc -p ../core/tsconfig.json && tsc -p tsconfig.json --noEmit && rm -rf dist && esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/index.js && chmod +x dist/index.js",
+    "test": "vitest run",
+    "verify:pack": "node scripts/verify-pack.mjs",
+    "prepublishOnly": "npm run build && npm test && npm run verify:pack"
   },
   "dependencies": {
     "viem": "^2.34.0",

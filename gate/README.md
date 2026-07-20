@@ -2,7 +2,7 @@
 
 Token-gate **any existing MCP server** with [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303) roles — no server modification. The agent talks to the gate, the gate talks to the wrapped server, and every `tools/call` passes an on-chain role check before it is forwarded. **Grant is a mint. Revoke is a burn.** For any MCP tool.
 
-Status: **v0.1 development** — M1/M2 of [docs/GATE_SPEC.md](../docs/GATE_SPEC.md) implemented (transparent stdio proxy, policy engine, `configured` subject, pinned-block admission checks, `tctc_gate_status`). Not yet published to npm.
+Status: **v0.1 on npm** ([`tctc-gate`](https://www.npmjs.com/package/tctc-gate)) — M1/M2 of [docs/GATE_SPEC.md](../docs/GATE_SPEC.md) implemented (transparent stdio proxy, policy engine, `configured` subject, pinned-block admission checks, `tctc_gate_status`). Proved-subject mode (SIWE, signer ≠ subject) is specified for v1.1 and not yet implemented.
 
 ```
 agent (MCP client) ──stdio──▶ tctc-gate ──stdio──▶ wrapped MCP server (unmodified)
@@ -10,7 +10,30 @@ agent (MCP client) ──stdio──▶ tctc-gate ──stdio──▶ wrapped M
                                   └── hasRole / balanceOf ──▶ chain
 ```
 
-## Try it
+## Quick start
+
+No clone or build needed — put the gate in front of any MCP server your
+client is configured to run. Write a `gate.json` (see Config below), then
+change the server's launch command from
+
+```sh
+npx -y some-mcp-server …
+```
+
+to
+
+```sh
+npx -y tctc-gate --config gate.json -- npx -y some-mcp-server …
+```
+
+Everything after `--` is the wrapped server's own command line; the gate is
+invisible to both sides except when a call is denied. The release pipeline
+verifies the packed bin end to end
+([scripts/verify-pack.mjs](scripts/verify-pack.mjs)); as with tctc-mcp, the
+bin is the only supported entry point — never import the package's `dist/`
+files.
+
+## Try the demo
 
 ```sh
 # from the repo root

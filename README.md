@@ -78,6 +78,19 @@ and calls OpenAI only when the on-chain gate grants access.
 
 Use it as a [GitHub template](https://github.com/new?template_name=tctc-openai-starter&template_owner=kofujimura).
 
+## Token-gating any MCP server: tctc-gate
+
+The reverse direction lives in this repo too:
+[`tctc-gate`](gate/) ([npm](https://www.npmjs.com/package/tctc-gate)) is a
+transparent stdio proxy that puts an ERC-7303 role check in front of **any
+existing MCP server, unmodified** — deny comes back with a grant URL that
+opens the dashboard pre-filled. tctc-mcp lets agents *ask* about roles;
+tctc-gate *enforces* them at the boundary:
+
+```sh
+npx -y tctc-gate --config gate.json -- npx -y some-mcp-server …
+```
+
 ## Tools
 
 | Tool | Mode | Purpose |
@@ -235,6 +248,8 @@ node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client
 - Human dashboard (this repo, [`dashboard/`](dashboard/)):
   <https://tctc-mcp.vercel.app/>
 - npm package: <https://www.npmjs.com/package/tctc-mcp>
+- [`tctc-gate`](gate/) — token-gate any existing MCP server, no
+  modification: <https://www.npmjs.com/package/tctc-gate>
 - [`tctc-openai-starter`](https://github.com/kofujimura/tctc-openai-starter)
   — Next.js starter for token-gated OpenAI access.
 - Agent skill (teaches agents to use TCTC safely; install with
