@@ -71,12 +71,12 @@ pipeline verifies the packed bin end-to-end
 
 Want to see `tctc-mcp` protecting a real API route?
 
-[`tctc-openai-token-gate`](https://github.com/kofujimura/tctc-openai-token-gate)
+[`tctc-openai-starter`](https://github.com/kofujimura/tctc-openai-starter)
 is a standalone Next.js starter that verifies wallet ownership with
 Sign-In with Ethereum, checks the configured role through `tctc-mcp`,
 and calls OpenAI only when the on-chain gate grants access.
 
-Use it as a [GitHub template](https://github.com/new?template_name=tctc-openai-token-gate&template_owner=kofujimura).
+Use it as a [GitHub template](https://github.com/new?template_name=tctc-openai-starter&template_owner=kofujimura).
 
 ## Tools
 
@@ -235,8 +235,8 @@ node scripts/e2e-live.mjs # live E2E: spawns the server via MCP stdio client
 - Human dashboard (this repo, [`dashboard/`](dashboard/)):
   <https://tctc-mcp.vercel.app/>
 - npm package: <https://www.npmjs.com/package/tctc-mcp>
-- [`tctc-openai-token-gate`](https://github.com/kofujimura/tctc-openai-token-gate)
-  — Next.js reference application for token-gated OpenAI access.
+- [`tctc-openai-starter`](https://github.com/kofujimura/tctc-openai-starter)
+  — Next.js starter for token-gated OpenAI access.
 - Agent skill (teaches agents to use TCTC safely; install with
   `npx skills add kofujimura/tctc-skills`):
   <https://github.com/kofujimura/tctc-skills>
