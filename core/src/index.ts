@@ -33,7 +33,7 @@ export const erc1155BalanceAbi = parseAbi([
   "function balanceOf(address account, uint256 id) view returns (uint256)",
 ]);
 
-export type CoreErrorCode = "NOT_IERC7303" | "CHAIN_UNAVAILABLE";
+export type CoreErrorCode = "NOT_IERC7303" | "CHAIN_UNAVAILABLE" | "CHAIN_MISMATCH";
 
 export class CoreError extends Error {
   constructor(
@@ -108,12 +108,36 @@ export async function supportsIERC7303(
       args: [IERC7303_INTERFACE_ID],
     });
   } catch (e) {
+    const fault = chainFault(e);
+    if (fault) throw fault;
     if (e instanceof ContractFunctionExecutionError) return false;
     throw new CoreError(
       "CHAIN_UNAVAILABLE",
       `supportsInterface probe on ${target} failed: ${(e as Error).message}`,
     );
   }
+}
+
+/**
+ * Recover a chain-level fault (chain-id gate, transport failure) buried in a
+ * wrapped error's cause chain, so it is never misreported as contract-level
+ * behavior such as "not IERC7303". Duck-typed on name+code because the
+ * consumer's ToolError class is a different module instance.
+ */
+function chainFault(e: unknown): CoreError | undefined {
+  let current: unknown = e;
+  for (let depth = 0; current instanceof Error && depth < 10; depth++) {
+    if (current instanceof CoreError) return current;
+    const code = (current as { code?: unknown }).code;
+    if (
+      current.name === "ToolError" &&
+      (code === "CHAIN_MISMATCH" || code === "CHAIN_UNAVAILABLE")
+    ) {
+      return new CoreError(code, current.message);
+    }
+    current = current.cause;
+  }
+  return undefined;
 }
 
 /** Enumerate the control tokens bound to a role via the IERC7303 getters. */
@@ -148,6 +172,8 @@ export async function discoverBindings(
       erc1155: contractIds.map((address, i) => ({ address, typeId: typeIds[i] })),
     };
   } catch (e) {
+    const fault = chainFault(e);
+    if (fault) throw fault;
     throw new CoreError(
       "CHAIN_UNAVAILABLE",
       `IERC7303 getters on ${target} failed: ${(e as Error).message}`,
@@ -172,6 +198,8 @@ export async function hasRole(
       ...(blockNumber !== undefined ? { blockNumber } : {}),
     });
   } catch (e) {
+    const fault = chainFault(e);
+    if (fault) throw fault;
     throw new CoreError(
       "CHAIN_UNAVAILABLE",
       `hasRole(${hash}, ${subject}) on ${target} failed: ${(e as Error).message}`,
@@ -267,18 +295,24 @@ export async function checkRolesPinned(
   try {
     blockNumber = await client.getBlockNumber();
   } catch (e) {
+    const fault = chainFault(e);
+    if (fault) throw fault;
     throw new CoreError("CHAIN_UNAVAILABLE", `getBlockNumber failed: ${(e as Error).message}`);
   }
   try {
     return await run(blockNumber);
-  } catch {
+  } catch (e) {
+    const mismatch = chainFault(e);
+    if (mismatch?.code === "CHAIN_MISMATCH") throw mismatch;
     try {
       const fresh = await client.getBlockNumber();
       return await run(fresh);
-    } catch (e) {
+    } catch (retryError) {
+      const fault = chainFault(retryError);
+      if (fault) throw fault;
       throw new CoreError(
         "CHAIN_UNAVAILABLE",
-        `pinned role check on ${target} failed after retry: ${(e as Error).message}`,
+        `pinned role check on ${target} failed after retry: ${(retryError as Error).message}`,
       );
     }
   }

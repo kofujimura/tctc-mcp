@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; }
+  body {
+    background: radial-gradient(1200px 800px at 30% 20%, #1a2340 0%, #0a0e1a 60%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { text-align: center; max-width: 1060px; }
+  h1 { color: #e8ecf8; font-size: 54px; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
+  h2 { color: #ff5c5c; font-size: 60px; font-weight: 800; margin: 26px 0 0; }
+  .play {
+    margin: 52px auto 0; width: 132px; height: 132px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 4px solid #e8ecf8;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .play::after {
+    content: ""; display: block; margin-left: 10px;
+    border-style: solid; border-width: 30px 0 30px 50px;
+    border-color: transparent transparent transparent #e8ecf8;
+  }
+  .sub { color: #7a86a8; font-size: 26px; margin-top: 40px; }
+  .sub b { color: #6ea8ff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Your AI agent has too much power.</h1>
+    <h2>Here's the kill switch.</h2>
+    <div class="play"></div>
+    <div class="sub">Watch the 60-second demo — <b>ERC-7303 × MCP</b>, live on Sepolia</div>
+  </div>
+</body>
+</html>

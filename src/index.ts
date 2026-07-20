@@ -8,7 +8,7 @@ import { registerQueryTools } from "./tools/query.js";
 import { registerAdminTools } from "./tools/admin.js";
 import { ConfigError } from "./errors.js";
 
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 const DEFAULT_CACHE_TTL_MS = 10_000;
 const DISCOVERY_CACHE_TTL_MS = 60_000;
 

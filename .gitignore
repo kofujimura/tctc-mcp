@@ -4,3 +4,4 @@ dist/
 .env.local
 *.log
 video/out/
+erc-update/

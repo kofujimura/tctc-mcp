@@ -2,7 +2,7 @@ import { parseAbi, type Address } from "viem";
 import type { Context } from "./context.js";
 import type { ControlToken, RoleConfig } from "./config.js";
 import { discoverBindings, hasRoleOnTarget, roleHash } from "./discovery.js";
-import { ToolError } from "./errors.js";
+import { ToolError, unwrapToolError } from "./errors.js";
 
 const erc721Abi = parseAbi([
   "function balanceOf(address owner) view returns (uint256)",
@@ -128,6 +128,8 @@ async function readBalance(
             args: [subject, token.typeId!],
           });
   } catch (e) {
+    const gate = unwrapToolError(e);
+    if (gate) throw gate;
     throw new ToolError(
       "CHAIN_UNAVAILABLE",
       `balanceOf(${subject}) on ${token.address} (${token.chain}) failed: ${

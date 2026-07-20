@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; }
+  body {
+    background: radial-gradient(1200px 800px at 30% 20%, #1a2340 0%, #0a0e1a 60%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { text-align: center; max-width: 1000px; }
+  h1, h2 { opacity: 0; margin: 0; }
+  h1 {
+    color: #e8ecf8; font-size: 56px; font-weight: 700; letter-spacing: -0.5px;
+    animation: fadein 1.2s ease 0.6s forwards;
+  }
+  h2 {
+    color: #ff5c5c; font-size: 64px; font-weight: 800; margin-top: 36px;
+    animation: fadein 1.2s ease 3.2s forwards;
+  }
+  .sub {
+    color: #7a86a8; font-size: 26px; margin-top: 48px; opacity: 0;
+    animation: fadein 1s ease 5.4s forwards;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(14px); }
+                      to   { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Your AI agent has too much power.</h1>
+    <h2>Here's the kill switch.</h2>
+    <div class="sub">on-chain permissions for AI agents — live on Sepolia</div>
+  </div>
+</body>
+</html>

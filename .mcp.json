@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "tctc": {
+      "command": "node",
+      "args": [
+        "dist/index.js",
+        "--config",
+        "examples/config.sepolia.agent.json",
+        "--no-cache"
+      ]
+    }
+  }
+}
