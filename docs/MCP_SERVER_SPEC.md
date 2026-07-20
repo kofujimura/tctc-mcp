@@ -270,8 +270,14 @@ as `grant_role`, calling `admin.revoke`.
   bursts. Revocation latency tolerance belongs to the *caller's*
   security model, so the TTL is deliberately short and documented.
 - **Errors** are returned as MCP tool errors with stable codes:
-  `ROLE_NOT_CONFIGURED`, `CHAIN_UNAVAILABLE`, `SUBJECT_UNRESOLVED`,
-  `NOT_ADMIN_MODE`, `TX_REVERTED` (with revert reason when decodable).
+  `ROLE_NOT_CONFIGURED`, `CHAIN_UNAVAILABLE`, `CHAIN_MISMATCH`,
+  `SUBJECT_UNRESOLVED`, `NOT_ADMIN_MODE`, `TX_REVERTED` (with revert
+  reason when decodable).
+- **Chain-id gate (v0.3.3):** the RPC endpoint is the authorization
+  oracle, so the first use of each chain's transport verifies
+  `eth_chainId` against the configured `chainId`. A mismatch fails every
+  call on that chain with `CHAIN_MISMATCH`; verification failures from
+  network errors are retried on the next call (fail-closed per call).
 - **No custody surprises:** the server never generates keys, never
   persists keys, and in read-only mode performs no signing at all.
 
