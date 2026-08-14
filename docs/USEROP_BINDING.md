@@ -1,6 +1,9 @@
 # `erc4337-userop.v1` — Additive Binding Mode for Smart-Account Flows (draft)
 
-**Status: draft v0, 2026-08-12.** Additive to
+**Status: draft v0, 2026-08-12; worked example independently recomputed
+2026-08-14** — both hashes reproduced from this doc's prose plus the public
+EntryPoint v0.7 source alone, no shared code
+([issue #4](https://github.com/kofujimura/tctc-mcp/issues/4)). Additive to
 [`validate_action` contract v1](./VALIDATE_ACTION.md) (frozen — nothing in it
 changes) and to the commit-then-act precedence pattern demonstrated in
 [issue #3](https://github.com/kofujimura/tctc-mcp/issues/3). Originates from
@@ -155,13 +158,22 @@ innerCalldata = 0x156e29f6
   0000000000000000000000000000000000000000000000000000000000000001
   0000000000000000000000000000000000000000000000000000000000000001
 
-callData = 0xb61d27f6
+callData = 0xb61d27f6                                             (260 bytes total)
   000000000000000000000000127093739bb7af8aa05e89806fa8c98941335119
   0000000000000000000000000000000000000000000000000000000000000000
   0000000000000000000000000000000000000000000000000000000000000060
   0000000000000000000000000000000000000000000000000000000000000064
-  156e29f6…(innerCalldata, right-padded)
+  156e29f600000000000000000000000073037303730373037303730373037303
+  7303730300000000000000000000000000000000000000000000000000000000
+  0000000100000000000000000000000000000000000000000000000000000000
+  0000000100000000000000000000000000000000000000000000000000000000
 ```
+
+(The full hex is dumped rather than sketched so that a verifier reads the
+`execute()` ABI encoding — dest, value, offset `0x60`, length `0x64`,
+28-byte right-pad — instead of having to derive it; surfaced by the
+independent recompute in
+[issue #4](https://github.com/kofujimura/tctc-mcp/issues/4).)
 
 **v0.7 hash construction** (for verifiers not using an existing 4337
 library):
@@ -176,6 +188,19 @@ packed  = abi.encode(sender, nonce,
                      keccak256(paymasterAndData))  // keccak256(0x) here
 userOpHash = keccak256(abi.encode(keccak256(packed), entryPoint, chainId))
 ```
+
+Two footguns named explicitly (both surfaced in the issue #4 recompute):
+
+- `keccak256(initCode)` / `keccak256(paymasterAndData)` with the fields
+  absent means **keccak of the empty byte string** (`keccak256("")` =
+  `0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470`),
+  not keccak of `0x00`.
+- The **live EIP-4337 page documents the current EntryPoint's hash
+  construction (v0.8, EIP-712-wrapped), not v0.7's plain keccak**. For
+  this binding mode's pinned v0.7 EntryPoint, the construction above and
+  the v0.7.0 contract source (`UserOperationLib` /
+  `EntryPoint.getUserOpHash`) are the authoritative recipe; a verifier who
+  reaches for "the spec" instead recomputes a different hash.
 
 **Computed values** — reproducible with
 [`scripts/userop-binding-example.mjs`](../scripts/userop-binding-example.mjs)
@@ -212,6 +237,16 @@ userOpHash via the preimage above; (3) `Committed.issuer` equals
   `0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789`, legacy struct packing;
   later versions likewise). The example pins v0.7 as the current common
   deployment.
+- **No `entryPointVersion` field** (resolved in issue #4): under CREATE2,
+  `(chainId, entryPoint)` already pins the exact deployed bytecode — the
+  address does real work, since v0.7 and v0.8 pack compatibly but hash
+  differently (plain keccak vs EIP-712). A self-asserted version string
+  could lie relative to what is actually deployed at the address; a
+  verifier who cares fetches the code. The one non-cryptographic residue —
+  a non-canonical deploy at a canonical-looking address (e.g. an L2
+  genesis predeploy with different bytecode) — could be closed by an
+  `entryPointCodehash` preimage field; recorded as deferred hardening,
+  overkill for v0.
 - **Real testnet UserOp:** the natural second step (EM #35). The synthetic
   example fixes the recipe; a mined Sepolia UserOp performing the
   commit-then-mint pair through a real smart account would let every value
