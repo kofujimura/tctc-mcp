@@ -70,6 +70,10 @@ export class AdmissionController {
           rpcUrls: { default: { http: [config.chain.rpcUrl] } },
         }),
         transport: http(config.chain.rpcUrl),
+        // viem caches eth_blockNumber for `cacheTime` (defaults to the 4 s
+        // polling interval); a pinned read would then be up to 4 s stale and
+        // an allow cache of 0 would still admit on revoked state.
+        cacheTime: 0,
       });
     this.allowCache = new TtlCache(config.cache.allowSeconds * 1000);
     this.denyCache = new TtlCache(config.cache.denySeconds * 1000);

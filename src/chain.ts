@@ -129,6 +129,11 @@ export class Chains {
       client = createPublicClient({
         chain: this.viemChain(name),
         transport: this.gatedTransport(name),
+        // viem caches eth_blockNumber for `cacheTime` (defaults to the 4 s
+        // polling interval). Pinned reads would then observe a block up to 4 s
+        // stale, delaying revocations by that much; authorization reads must be
+        // live.
+        cacheTime: 0,
       });
       this.publicClients.set(name, client);
     }
