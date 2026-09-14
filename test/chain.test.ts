@@ -73,3 +73,18 @@ describe("unwrapToolError", () => {
     expect(unwrapToolError("not an error")).toBeUndefined();
   });
 });
+
+describe("Chains block-number freshness", () => {
+  // Regression: viem memoizes eth_blockNumber for `cacheTime` (4 s by
+  // default), which made pinned authorization reads up to 4 s stale and
+  // delayed the observation of a burn by that much.
+  it("builds public clients without viem's default 4 s block cache", () => {
+    const config = {
+      chains: { sepolia: { chainId: 11155111, rpcUrl: "http://127.0.0.1:1/unused" } },
+      defaultChain: "sepolia",
+      roles: {},
+    } as unknown as Config;
+    const client = new Chains(config).public("sepolia") as unknown as { cacheTime: number };
+    expect(client.cacheTime).toBe(0);
+  });
+});

@@ -7,7 +7,7 @@ An MCP server exposing [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303)
 their own on-chain permissions, and human principals grant/revoke them
 by minting/burning control tokens — no permission server required.
 
-Status: **v0.3** — adds timed roles with gasless auto-expiry (below),
+Status: **v0.3.4** — adds timed roles with gasless auto-expiry (below),
 on top of v0.2's IERC7303 auto-discovery; published on npm
 ([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp)), unit-tested
 and verified end-to-end against the Sepolia demo deployment (grant →

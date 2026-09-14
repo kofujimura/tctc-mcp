@@ -2,7 +2,7 @@
 
 Token-gate **any existing MCP server** with [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303) roles — no server modification. The agent talks to the gate, the gate talks to the wrapped server, and every `tools/call` passes an on-chain role check before it is forwarded. **Grant is a mint. Revoke is a burn.** For any MCP tool.
 
-Status: **v0.1 on npm** ([`tctc-gate`](https://www.npmjs.com/package/tctc-gate)) — M1/M2 of [docs/GATE_SPEC.md](../docs/GATE_SPEC.md) implemented (transparent stdio proxy, policy engine, `configured` subject, pinned-block admission checks, `tctc_gate_status`). Proved-subject mode (SIWE, signer ≠ subject) is specified for v1.1 and not yet implemented.
+Status: **v0.1.1 on npm** ([`tctc-gate`](https://www.npmjs.com/package/tctc-gate)) — M1/M2 of [docs/GATE_SPEC.md](../docs/GATE_SPEC.md) implemented (transparent stdio proxy, policy engine, `configured` subject, pinned-block admission checks, `tctc_gate_status`). Proved-subject mode (SIWE, signer ≠ subject) is specified for v1.1 and not yet implemented.
 
 ```
 agent (MCP client) ──stdio──▶ tctc-gate ──stdio──▶ wrapped MCP server (unmodified)

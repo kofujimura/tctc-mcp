@@ -367,7 +367,11 @@ authorization — a cached allow is a real permission extension. Hence:
 - **allow verdicts: `cache.allowSeconds`, default `0`** (every admission
   is a live read). Principals may opt in **globally** — there is no
   per-tool override in v1 — with the tradeoff stated: kill-switch
-  latency ≤ allow-cache + block time. A still-valid allow-cache entry is
+  latency is one live read after the burn is included, plus any
+  allow-cache residue: the cache clock starts when a verdict is stored,
+  not when the state it reflects was current, so a verdict read just
+  before a burn can outlive the burn by a round trip plus the remaining
+  lifetime. A still-valid allow-cache entry is
   honored even if the RPC has since become unreachable (that is what
   caching means); fail-closed governs fresh admissions.
 - **deny verdicts: `cache.denySeconds`, default `10`** (a denied agent
@@ -375,7 +379,11 @@ authorization — a cached allow is a real permission extension. Hence:
   up to 10 s to be noticed is the benign direction).
 - Binding discovery cached 60 s (as tctc-mcp).
 - **Pinned reads.** Each live admission check (1) fetches the current
-  block number, (2) performs `hasRole` and the balance-evidence reads as
+  block number — from the endpoint, never from a client-side cache: the
+  RPC client is built with `cacheTime: 0`, because viem's default 4 s
+  memo of `eth_blockNumber` would pin every "live" check to a block up
+  to 4 s old and delay a burn by that much (fixed in 0.1.1) —,
+  (2) performs `hasRole` and the balance-evidence reads as
   `eth_call`s **pinned to that block**, and (3) reports that same number
   as `observedBlockNumber` — the reported number can never drift from
   the state it labels. If the endpoint rejects the pinned call, the gate
