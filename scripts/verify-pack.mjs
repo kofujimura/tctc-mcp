@@ -12,10 +12,16 @@
  * that unit tests and in-repo E2Es cannot see.
  */
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
+/** process.env without the npm_config_* entries an enclosing `npm run` injects. */
+function cleanNpmEnv() {
+  return Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("npm_config_")));
+}
+
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const work = mkdtempSync(join(tmpdir(), "tctc-mcp-pack-"));
@@ -33,8 +39,16 @@ try {
   if (!tarball) fail("npm pack produced no tarball");
 
   console.log(`· installing ${tarball} into a scratch app …`);
+  // A real project directory, installed from inside it, as a user would.
+  // `npm run` hands every npm_config_* setting of the outer npm to this
+  // script's environment; npm 11 then rejects an inherited allow-scripts
+  // value as a non-project setting (EALLOWSCRIPTS). Strip them, so the
+  // install sees only its own project config, and declare an empty
+  // allowScripts there: nothing under test has install scripts.
   const app = join(work, "app");
-  execFileSync("npm", ["install", "--prefix", app, join(work, tarball)], { stdio: "pipe" });
+  mkdirSync(app);
+  writeFileSync(join(app, "package.json"), JSON.stringify({ name: "verify-app", private: true, allowScripts: [] }));
+  execFileSync("npm", ["install", "--no-audit", "--no-fund", join(work, tarball)], { cwd: app, stdio: "pipe", env: cleanNpmEnv() });
 
   const bin = join(app, "node_modules", ".bin", "tctc-mcp");
   const config = join(ROOT, "examples", "config.sepolia.agent.json");

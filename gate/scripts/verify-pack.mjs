@@ -67,11 +67,18 @@ tarballPath = join(gateDir, tarball);
 workDir = mkdtempSync(join(tmpdir(), "tctc-gate-verify-"));
 writeFileSync(
   join(workDir, "package.json"),
-  JSON.stringify({ name: "verify-consumer", private: true, type: "module" }),
+  // allowScripts: npm 11 rejects a user-level allow-scripts setting in a
+  // project install; declare an empty one here (nothing under test has
+  // install scripts).
+  JSON.stringify({ name: "verify-consumer", private: true, type: "module", allowScripts: [] }),
 );
+// Strip the npm_config_* settings an enclosing `npm run` injects: npm 11
+// rejects an inherited allow-scripts value as a non-project setting.
+const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("npm_config_")));
 execFileSync("npm", ["install", "--no-audit", "--no-fund", tarballPath], {
   cwd: workDir,
   stdio: "pipe",
+  env: cleanEnv,
 });
 copyFileSync(join(gateDir, "test", "fixtures", "mini-server.mjs"), join(workDir, "mini-server.mjs"));
 writeFileSync(
