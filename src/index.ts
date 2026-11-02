@@ -7,6 +7,8 @@ import { BalanceCache, TtlCache, type Context } from "./context.js";
 import { registerQueryTools } from "./tools/query.js";
 import { registerAdminTools } from "./tools/admin.js";
 import { ConfigError } from "./errors.js";
+import { AGENT_ENV_FILE, AGENT_KEY_VAR, buildDashboardLink, loadAgentIdentity } from "./agent.js";
+import { runAgentCommand } from "./agent-cli.js";
 
 const VERSION = "0.3.3";
 const DEFAULT_CACHE_TTL_MS = 10_000;
@@ -36,13 +38,19 @@ function parseArgs(argv: string[]): CliOptions {
           `tctc-mcp ${VERSION} — MCP server for ERC-7303 token-controlled roles
 
 Usage: tctc-mcp --config <file> [--no-cache]
+       tctc-mcp agent init|link …   (agent identity helpers; see tctc-mcp agent)
 
   --config <file>   Config JSON (or set TCTC_CONFIG)
   --no-cache        Disable the balance (10s) and IERC7303 discovery (60s) caches
 
 Environment:
   TCTC_CONFIG              Config path (alternative to --config)
-  TCTC_ADMIN_PRIVATE_KEY   Enables admin mode (grant_role / revoke_role)`,
+  TCTC_ADMIN_PRIVATE_KEY   Enables admin mode (grant_role / revoke_role)
+  TCTC_AGENT_PRIVATE_KEY   The agent's own EOA key (also read from ./.env.local):
+                           its address becomes the default subject, and a
+                           signed dashboard link is offered via whoami
+  TCTC_AGENT_NAME          Display name for the dashboard (optional)
+  TCTC_DASHBOARD_URL       Dashboard base URL (default https://tctc-mcp.vercel.app/)`,
         );
         process.exit(0);
       default:
@@ -54,6 +62,9 @@ Environment:
 }
 
 async function main(): Promise<void> {
+  if (process.argv[2] === "agent") {
+    process.exit(await runAgentCommand(process.argv.slice(3)));
+  }
   const opts = parseArgs(process.argv.slice(2));
   const configPath = opts.configPath ?? process.env.TCTC_CONFIG;
   if (!configPath) {
@@ -69,6 +80,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // The agent's own EOA, from the environment or ./.env.local of the folder
+  // the MCP client starts us in. Only TCTC_AGENT_* keys are read from that
+  // file — never the admin key.
+  const agent = loadAgentIdentity(process.cwd(), process.env);
+
   const chains = new Chains(config, adminKey as `0x${string}` | undefined);
   const ctx: Context = {
     config,
@@ -76,6 +92,7 @@ async function main(): Promise<void> {
     cache: new BalanceCache(opts.cache ? DEFAULT_CACHE_TTL_MS : 0),
     discovery: new TtlCache(opts.cache ? DISCOVERY_CACHE_TTL_MS : 0),
     adminMode: adminKey !== undefined,
+    agent,
   };
 
   const server = new McpServer({ name: "tctc-mcp", version: VERSION });
@@ -91,6 +108,21 @@ async function main(): Promise<void> {
       `chains: ${Object.keys(config.chains).join(", ")}` +
       (ctx.adminMode ? `, signer: ${chains.adminAccount!.address}` : ""),
   );
+  if (agent) {
+    const chainId = config.chains[config.defaultChain].chainId;
+    const link = await buildDashboardLink(agent, chainId);
+    console.error(
+      `tctc-mcp: agent ${agent.address}${agent.name ? ` "${agent.name}"` : ""} ` +
+        `(key from ${agent.source}) is the default subject` +
+        (config.self ? "; it takes precedence over the config's self" : ""),
+    );
+    console.error(`tctc-mcp: dashboard (signed agent link): ${link.url}`);
+  } else {
+    console.error(
+      `tctc-mcp: no agent key (${AGENT_KEY_VAR} or ./${AGENT_ENV_FILE}); ` +
+        (config.self ? "default subject is the config's self" : "no default subject"),
+    );
+  }
 
   await server.connect(new StdioServerTransport());
 }

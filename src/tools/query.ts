@@ -13,6 +13,7 @@ import { assertAddress } from "../chain.js";
 import { resolveSubject } from "../subject.js";
 import { resolveAgent } from "../identity.js";
 import { jsonResult, handled } from "./util.js";
+import { buildDashboardLink, DEFAULT_DASHBOARD_URL } from "../agent.js";
 
 const subjectShape = z
   .object({
@@ -68,6 +69,75 @@ export function registerQueryTools(server: McpServer, ctx: Context): void {
         })),
       }),
     ),
+  );
+
+  server.registerTool(
+    "whoami",
+    {
+      title: "Who am I — this agent's on-chain identity",
+      description:
+        "Report this agent's own account: the EOA derived from TCTC_AGENT_PRIVATE_KEY " +
+        "(read from .env.local in the folder the agent was started from), or the " +
+        "config's self as a fallback. Includes a dashboard link signed with the agent " +
+        "key: a human opens it once to bind this agent to the TCTC dashboard, which " +
+        "from then on shows the control tokens this account holds — the agent's " +
+        "permissions as tokens. The private key is never returned. Call " +
+        "check_all_roles for the role verdicts themselves.",
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    handled(async () => {
+      const chainName = ctx.config.defaultChain;
+      const chainId = ctx.config.chains[chainName].chainId;
+      if (ctx.agent) {
+        const link = await buildDashboardLink(ctx.agent, chainId);
+        return jsonResult({
+          identity: "agent-key",
+          address: ctx.agent.address,
+          name: ctx.agent.name ?? null,
+          keySource: ctx.agent.source,
+          chain: chainName,
+          chainId,
+          dashboardUrl: link.url,
+          linkIssuedAt: link.issuedAt,
+          note:
+            "This address is the default subject of check_role / check_all_roles. " +
+            "Its permissions are the control tokens it holds on-chain; they persist " +
+            "across restarts because the key in .env.local is the agent's identity.",
+        });
+      }
+      const self = ctx.config.self;
+      if (self && "address" in self) {
+        const url = new URL(DEFAULT_DASHBOARD_URL);
+        url.searchParams.set("chainId", String(chainId));
+        url.searchParams.set("agent", self.address);
+        return jsonResult({
+          identity: "config-self",
+          address: self.address,
+          chain: chainName,
+          chainId,
+          dashboardUrl: url.toString(),
+          note:
+            "No agent key configured: this is the config's self address, so the " +
+            "link is unsigned. Set TCTC_AGENT_PRIVATE_KEY in .env.local (see " +
+            "`tctc-mcp agent init`) to give the agent its own key-backed identity.",
+        });
+      }
+      if (self) {
+        return jsonResult({
+          identity: "config-self",
+          agentId: self.agentId,
+          chain: chainName,
+          chainId,
+          note: "self is an ERC-8004 agentId (resolved to its ERC-6551 TBA); see resolve_agent.",
+        });
+      }
+      return jsonResult({
+        identity: "none",
+        note:
+          "No agent key and no self in the config. Run `tctc-mcp agent init` in the " +
+          "agent's folder to create .env.local with an agent key.",
+      });
+    }),
   );
 
   server.registerTool(

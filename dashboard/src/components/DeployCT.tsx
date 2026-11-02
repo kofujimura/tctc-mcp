@@ -12,7 +12,8 @@ import {
   expiringCtBytecode,
   standardCtBytecode,
 } from "../lib/ct-artifacts";
-import { IssuerActions, type TxEntry } from "./IssuerActions";
+import { IssuerActions } from "./IssuerActions";
+import type { TxEntry } from "../lib/issuer";
 import { zeroAddress } from "viem";
 
 type Variant = "standard" | "expiring";
@@ -31,6 +32,10 @@ interface Props {
   explorer: string;
   pushTx: (entry: TxEntry) => void;
   updateTx: (id: number, patch: Partial<TxEntry>) => void;
+  /** a collection was deployed or loaded here — watch it for agent holdings */
+  onCollection?: (address: Address) => void;
+  /** a grant / revoke was confirmed */
+  onWrote?: () => void;
 }
 
 /**
@@ -39,7 +44,16 @@ interface Props {
  * The deployed bytecode is byte-identical to the Etherscan-verified Sepolia
  * reference deployments, so explorers auto-verify it by similar match.
  */
-export function DeployCT({ chain, client, account, explorer, pushTx, updateTx }: Props) {
+export function DeployCT({
+  chain,
+  client,
+  account,
+  explorer,
+  pushTx,
+  updateTx,
+  onCollection,
+  onWrote,
+}: Props) {
   const [variant, setVariant] = useState<Variant>("standard");
   const [ctName, setCtName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,6 +89,7 @@ export function DeployCT({ chain, client, account, explorer, pushTx, updateTx }:
         name: res[1].status === "success" ? (res[1].result as string) : undefined,
         expiring: res[2].status === "success",
       });
+      onCollection?.(address);
     } catch (e) {
       setManaged(undefined);
       setManageError(e instanceof Error ? e.message.split("\n")[0] : String(e));
@@ -212,7 +227,10 @@ export function DeployCT({ chain, client, account, explorer, pushTx, updateTx }:
                 defaultTo=""
                 pushTx={pushTx}
                 updateTx={updateTx}
-                onChanged={() => loadManaged(managed.address)}
+                onChanged={() => {
+                  loadManaged(managed.address);
+                  onWrote?.();
+                }}
               />
             </>
           ) : isOwner ? (

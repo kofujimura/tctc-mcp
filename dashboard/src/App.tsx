@@ -18,7 +18,20 @@ import {
 } from "./lib/core";
 import { RoleCard } from "./components/RoleCard";
 import { DeployCT } from "./components/DeployCT";
-import type { TxEntry } from "./components/IssuerActions";
+import { AgentsPanel } from "./components/AgentsPanel";
+import type { TxEntry } from "./lib/issuer";
+import { useAgentRegistry } from "./lib/useAgentRegistry";
+import { parseAgentLink, verifyAgentLink } from "./lib/agent-link";
+
+/** URL params of a signed agent link (stripped once consumed). */
+const LINK_PARAMS = ["agent", "name", "ts", "sig", "chainId"];
+
+function bootChainKey(params: URLSearchParams): string {
+  const byId = CHAIN_PRESETS.find((p) => String(p.chainId) === params.get("chainId"));
+  if (byId) return byId.key;
+  const byKey = CHAIN_PRESETS.find((p) => p.key === params.get("chain"));
+  return byKey ? byKey.key : "sepolia";
+}
 
 type Support = "idle" | "checking" | "yes" | "no";
 
@@ -27,11 +40,7 @@ const REFRESH_MS = 12000;
 export default function App() {
   const boot = useMemo(() => new URLSearchParams(window.location.search), []);
 
-  const [chainKey, setChainKey] = useState(
-    CHAIN_PRESETS.some((p) => p.key === boot.get("chain"))
-      ? (boot.get("chain") as string)
-      : "sepolia",
-  );
+  const [chainKey, setChainKey] = useState(() => bootChainKey(boot));
   const [rpcOverride, setRpcOverride] = useState("");
   const [account, setAccount] = useState<Address>();
 
@@ -57,6 +66,12 @@ export default function App() {
   const preset = CHAIN_PRESETS.find((p) => p.key === chainKey)!;
   const chain = useMemo(() => toChain(preset, rpcOverride), [preset, rpcOverride]);
   const client = useMemo(() => makePublicClient(chain), [chain]);
+  const registry = useAgentRegistry(preset.chainId);
+
+  // Bumped after every confirmed write anywhere on the page, so every view
+  // re-reads the chain at once instead of waiting for its next poll.
+  const [writeTick, setWriteTick] = useState(0);
+  const onWrote = useCallback(() => setWriteTick((t) => t + 1), []);
 
   const subject: Address | undefined = isAddress(subjectInput)
     ? subjectInput
@@ -132,6 +147,7 @@ export default function App() {
           return;
         }
         setSupport("yes");
+        registry.addTarget(input);
         const found = await probeRoles(client, input, [
           ...ROLE_DICTIONARY,
           ...extraRoles,
@@ -153,7 +169,7 @@ export default function App() {
         setError(e instanceof Error ? e.message.split("\n")[0] : String(e));
       }
     },
-    [client, targetInput, customRoles, chainKey],
+    [client, targetInput, customRoles, chainKey, registry.addTarget],
   );
 
   async function addRole() {
@@ -196,7 +212,7 @@ export default function App() {
 
   useEffect(() => {
     refreshEvidence();
-  }, [refreshEvidence]);
+  }, [refreshEvidence, writeTick]);
 
   useEffect(() => {
     if (!live) return;
@@ -210,6 +226,42 @@ export default function App() {
       autoRan.current = true;
       inspect();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A signed agent link (printed by tctc-mcp started in the agent's folder):
+  // verify the agent's signature, add it to this chain's roster, clean the URL.
+  const linkRan = useRef(false);
+  useEffect(() => {
+    if (linkRan.current) return;
+    linkRan.current = true;
+    const link = parseAgentLink(boot);
+    if (!link) return;
+    (async () => {
+      const verified = await verifyAgentLink(link);
+      registry.addAgent({
+        address: link.address,
+        name: link.name,
+        verified,
+        linkedAt: verified ? link.issuedAt : undefined,
+        addedAt: new Date().toISOString(),
+      });
+      const label = `${link.name ? `“${link.name}” ` : ""}(${shortAddress(link.address)})`;
+      const chainNote =
+        link.chainId !== undefined && link.chainId !== preset.chainId
+          ? ` Note: the link is for chain ${link.chainId}, which this dashboard does not support — shown on ${preset.label}.`
+          : "";
+      setNotice(
+        (verified
+          ? `Agent ${label} linked — the link is signed by the agent's own key ✓. Its control tokens are shown below and stay visible across agent restarts.`
+          : `Agent ${label} added — the link is not signed by the agent's key, so it is marked unverified.`) +
+          chainNote,
+      );
+      const params = new URLSearchParams(window.location.search);
+      for (const k of LINK_PARAMS) params.delete(k);
+      params.set("chain", preset.key);
+      window.history.replaceState(null, "", `?${params.toString()}`);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -262,6 +314,27 @@ export default function App() {
           {notice}
         </div>
       )}
+
+      <AgentsPanel
+        registry={registry}
+        inspected={support === "yes" && target ? { address: target, roles } : undefined}
+        explorer={preset.explorer}
+        account={account}
+        chain={chain}
+        client={client}
+        pushTx={pushTx}
+        updateTx={updateTx}
+        writeTick={writeTick}
+        onWrote={onWrote}
+        onUseAsSubject={
+          support === "yes"
+            ? (address) => {
+                setSubjectInput(address);
+                document.getElementById("subject-panel")?.scrollIntoView({ behavior: "smooth" });
+              }
+            : undefined
+        }
+      />
 
       <section className="panel">
         <h2>Target contract</h2>
@@ -323,7 +396,7 @@ export default function App() {
       </section>
 
       {support === "yes" && (
-        <section className="panel">
+        <section className="panel" id="subject-panel">
           <h2>Subject</h2>
           <div className="row">
             <input
@@ -354,6 +427,23 @@ export default function App() {
               </span>
             )}
           </div>
+          {registry.agents.length > 0 && (
+            <div className="row">
+              <span className="recipient-label">agents</span>
+              {registry.agents.map((a) => (
+                <button
+                  key={a.address}
+                  className={`chip chip-btn ${
+                    subject?.toLowerCase() === a.address.toLowerCase() ? "chip-info" : ""
+                  }`}
+                  onClick={() => setSubjectInput(a.address)}
+                  title={a.address}
+                >
+                  {a.name ?? shortAddress(a.address)}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -372,7 +462,7 @@ export default function App() {
               client={client}
               pushTx={pushTx}
               updateTx={updateTx}
-              onChanged={refreshEvidence}
+              onChanged={onWrote}
             />
           ))}
         </section>
@@ -385,6 +475,8 @@ export default function App() {
         explorer={preset.explorer}
         pushTx={pushTx}
         updateTx={updateTx}
+        onCollection={registry.addCollection}
+        onWrote={onWrote}
       />
 
       {txLog.length > 0 && (
