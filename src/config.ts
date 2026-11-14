@@ -75,11 +75,11 @@ const selfSchema = z.union([
 ]);
 
 const configSchema = z.object({
-  chains: z.record(chainSchema).refine((c) => Object.keys(c).length > 0, {
+  chains: z.record(z.string(), chainSchema).refine((c) => Object.keys(c).length > 0, {
     message: "at least one chain must be configured",
   }),
   defaultChain: z.string().min(1),
-  roles: z.record(roleSchema).default({}),
+  roles: z.record(z.string(), roleSchema).default({}),
   identity: identitySchema.optional(),
   self: selfSchema.optional(),
 });
