@@ -29,7 +29,9 @@ const gateConfigSchema = z.object({
       allowSeconds: z.number().min(0).default(0),
       denySeconds: z.number().min(0).default(10),
     })
-    .default({}),
+    // Spelled out in full: zod 4 returns a default as-is instead of parsing
+    // it, so `.default({})` would leave both fields undefined there.
+    .default({ allowSeconds: 0, denySeconds: 10 }),
   listMode: z.enum(["annotate", "plain"]).default("annotate"),
   audit: z.string().optional(),
   grantUrlBase: z.string().url().default("https://tctc-mcp.vercel.app/"),
