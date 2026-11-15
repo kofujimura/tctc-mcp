@@ -197,6 +197,8 @@ export interface Conferred {
   role: string;
   target: Address;
   targetLabel: string;
+  /** what kind of door the target is; on-chain targets are contracts */
+  via?: "contract" | "mcp" | "web";
 }
 
 export function tokenKey(collection: Address, typeId?: bigint): string {
