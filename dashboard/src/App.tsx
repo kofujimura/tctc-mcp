@@ -24,11 +24,11 @@ import { GrantRow } from "./components/GrantRow";
 import { StoryBar } from "./components/StoryBar";
 import type { AgentEntry, HeldToken } from "./lib/agents";
 import { issuerWrite, type TxEntry } from "./lib/issuer";
-import { useAgentRegistry } from "./lib/useAgentRegistry";
+import { useAgentRegistry, type AgentRegistry } from "./lib/useAgentRegistry";
 import { useDirectory } from "./lib/useDirectory";
 import { useHoldings } from "./lib/useHoldings";
 import { useStory } from "./lib/useStory";
-import { STORIES } from "./lib/story";
+import { DEPLOYMENTS, STORIES, deployed, lapsedOnChain, storyWatch } from "./lib/story";
 import { parseAgentLink, verifyAgentLink } from "./lib/agent-link";
 import { permitView, type ViewContext } from "./lib/world";
 
@@ -64,15 +64,21 @@ function bootTheme(params: URLSearchParams): Theme {
 export default function App() {
   const boot = useMemo(() => new URLSearchParams(window.location.search), []);
 
-  const [chainKey, setChainKey] = useState(() => bootChainKey(boot));
+  // Story mode (?story=ica2026): a scripted world through the same cards, nothing read from a chain.
+  // With &live and a deployment of that story, the tokens and applications are read from the
+  // chain instead; only the captions and the agent's status line stay scripted.
+  const story = STORIES[boot.get("story") ?? ""];
+  const deployment = story && boot.has("live") ? DEPLOYMENTS[story.id] : undefined;
+  const liveStory = useMemo(() => (story && deployment ? deployed(story, deployment) : undefined), [story, deployment]);
+  const tale = useStory(liveStory ?? story, (Number(boot.get("scene")) || 1) - 1);
+  const [barHidden, setBarHidden] = useState(false);
+
+  const [chainKey, setChainKey] = useState(
+    () => CHAIN_PRESETS.find((p) => p.chainId === deployment?.chainId)?.key ?? bootChainKey(boot),
+  );
   const [rpcOverride, setRpcOverride] = useState("");
   const [account, setAccount] = useState<Address>();
   const [theme, setTheme] = useState<Theme>(() => bootTheme(boot));
-
-  // Story mode (?story=ica2026): a scripted world through the same cards, nothing read from a chain.
-  const story = STORIES[boot.get("story") ?? ""];
-  const tale = useStory(story, (Number(boot.get("scene")) || 1) - 1);
-  const [barHidden, setBarHidden] = useState(false);
 
   // A link that names a target (a gateway's denial link does) opens where targets are inspected.
   const [view, setView] = useState<View>(() => (boot.get("target") && !story ? "manage" : "overview"));
@@ -138,30 +144,49 @@ export default function App() {
     () => (support === "yes" && target ? { address: target, roles } : undefined),
     [support, target, roles],
   );
-  const holdings = useHoldings({ enabled: !story, client, registry, inspected, subjects, writeTick });
-
-  const liveCtx = useMemo<ViewContext>(
-    () => ({
-      me: liveMe,
-      agents: registry.agents,
-      collections: holdings.collectionMeta,
-      conferred: holdings.conferred,
-      directory: dir.directory,
-    }),
-    [liveMe, registry.agents, holdings.collectionMeta, holdings.conferred, dir.directory],
-  );
+  // A live story watches its own cast, not this browser's roster.
   const taleView = tale?.view;
-  const storyCtx = useMemo<ViewContext | undefined>(
-    () =>
-      taleView && {
-        me: taleView.me,
-        agents: taleView.agents,
-        collections: taleView.collections,
-        conferred: taleView.conferred,
-        directory: taleView.directory,
-      },
+  const storyRegistry = useMemo<AgentRegistry | undefined>(() => {
+    if (!liveStory || !taleView) return undefined;
+    const fixed = () => {};
+    return {
+      agents: taleView.agents,
+      ...storyWatch(liveStory),
+      addAgent: fixed,
+      removeAgent: fixed,
+      addTarget: fixed,
+      removeTarget: fixed,
+      addCollection: fixed,
+      removeCollection: fixed,
+    };
+  }, [liveStory, taleView]);
+  const storySubjects = useMemo(
+    () => (taleView ? [taleView.me, ...taleView.agents.map((a) => a.address)] : []),
     [taleView],
   );
+  const holdings = useHoldings({
+    enabled: !story || Boolean(liveStory),
+    client,
+    registry: storyRegistry ?? registry,
+    inspected: liveStory ? undefined : inspected,
+    subjects: liveStory ? storySubjects : subjects,
+    writeTick,
+  });
+
+  // A live story's status lines follow the chain where the script ties them to an expiry.
+  const activityFor = tale?.activityFor;
+  const liveActivity = useMemo(
+    () => (liveStory && activityFor ? activityFor(lapsedOnChain(liveStory, holdings.states)) : undefined),
+    [liveStory, activityFor, holdings.states],
+  );
+
+  // What the cards are drawn from: the live view, a replayed story, or a story read from the chain.
+  const ctx = useMemo<ViewContext>(() => {
+    const chain = { collections: holdings.collectionMeta, conferred: holdings.conferred };
+    if (!taleView) return { me: liveMe, agents: registry.agents, ...chain, directory: dir.directory };
+    const cast = { me: taleView.me, agents: taleView.agents, directory: taleView.directory };
+    return liveStory ? { ...cast, ...chain } : { ...cast, collections: taleView.collections, conferred: taleView.conferred };
+  }, [taleView, liveStory, liveMe, registry.agents, holdings.collectionMeta, holdings.conferred, dir.directory]);
 
   const subject: Address | undefined = isAddress(subjectInput)
     ? subjectInput
@@ -386,7 +411,7 @@ export default function App() {
   async function revokeLive(holder: Address, token: HeldToken) {
     if (!account || token.typeId === undefined) return;
     const meta = holdings.collectionMeta.get(token.collection.toLowerCase());
-    const who = registry.agents.find((a) => a.address.toLowerCase() === holder.toLowerCase())?.name;
+    const who = ctx.agents.find((a) => a.address.toLowerCase() === holder.toLowerCase())?.name;
     const ok = await issuerWrite({
       action: "revoke",
       ctAddress: token.collection,
@@ -398,7 +423,7 @@ export default function App() {
       account,
       pushTx,
       updateTx,
-      label: `Revoke ${permitView(token, liveCtx).title} from ${who || shortAddress(holder)}`,
+      label: `Revoke ${permitView(token, ctx).title} from ${who || shortAddress(holder)}`,
     });
     if (ok) onWrote();
   }
@@ -409,7 +434,7 @@ export default function App() {
       collections={holdings.collectionMeta}
       conferred={holdings.conferred}
       bound={holdings.bound}
-      directory={dir.directory}
+      directory={ctx.directory}
       account={account}
       chain={chain}
       client={client}
@@ -421,14 +446,12 @@ export default function App() {
 
   const liveTools = (
     <div className="panel-tools">
-      {holdings.checkedAt && subjects.length > 0 && (
-        <span className="hint">read {holdings.checkedAt.toLocaleTimeString()}</span>
-      )}
+      {holdings.checkedAt && <span className="hint">read {holdings.checkedAt.toLocaleTimeString()}</span>}
       <label className="toggle">
         <input type="checkbox" checked={holdings.live} onChange={(e) => holdings.setLive(e.target.checked)} />
         live (12s)
       </label>
-      <button className="btn btn-sm" onClick={holdings.refresh} disabled={subjects.length === 0}>
+      <button className="btn btn-sm" onClick={holdings.refresh}>
         Refresh
       </button>
     </div>
@@ -454,9 +477,27 @@ export default function App() {
         <div className="header-controls">
           {tale ? (
             <>
-              <span className="chip chip-warn story-pill" title="Nothing on this page is read from a chain">
-                Story mode · sample data
-              </span>
+              {liveStory ? (
+                <>
+                  <span
+                    className="chip chip-yes story-pill"
+                    title="Tokens and applications are read from the chain. The captions and the agent's status line are scripted."
+                  >
+                    Live on {preset.label} · status lines scripted
+                  </span>
+                  <button
+                    className="btn"
+                    onClick={connectWallet}
+                    title={account ? "Connected — click to switch account" : "Connect the issuer's wallet to grant or revoke here"}
+                  >
+                    {account ? shortAddress(account) : "Connect wallet"}
+                  </button>
+                </>
+              ) : (
+                <span className="chip chip-warn story-pill" title="Nothing on this page is read from a chain">
+                  Story mode · sample data
+                </span>
+              )}
               <a className="btn" href={window.location.pathname}>
                 Exit story
               </a>
@@ -526,17 +567,33 @@ export default function App() {
         </div>
       )}
 
-      {tale && storyCtx ? (
+      {tale ? (
         <>
-          <Overview
-            ctx={storyCtx}
-            states={tale.states}
-            activity={tale.activity}
-            showVerified={false}
-            ghostMs={20000}
-            canRevoke={(holder, t) => tale.canRevoke(holder, t.key)}
-            onRevoke={(holder, t) => tale.revoke(holder, t.key)}
-          />
+          {liveStory ? (
+            <Overview
+              ctx={ctx}
+              states={holdings.states}
+              explorer={preset.explorer}
+              activity={liveActivity}
+              showVerified={false}
+              ghostMs={20000}
+              canRevoke={(_holder, t) => t.standard === "erc1155" && issues(t)}
+              onRevoke={revokeLive}
+              renderGrant={renderGrant}
+              tools={liveTools}
+              error={holdings.error}
+            />
+          ) : (
+            <Overview
+              ctx={ctx}
+              states={tale.states}
+              activity={tale.activity}
+              showVerified={false}
+              ghostMs={20000}
+              canRevoke={(holder, t) => tale.canRevoke(holder, t.key)}
+              onRevoke={(holder, t) => tale.revoke(holder, t.key)}
+            />
+          )}
           {!barHidden && (
             <StoryBar
               story={tale.story}
@@ -549,7 +606,7 @@ export default function App() {
         </>
       ) : view === "overview" ? (
         <Overview
-          ctx={liveCtx}
+          ctx={ctx}
           states={holdings.states}
           explorer={preset.explorer}
           canRevoke={(_holder, t) => t.standard === "erc1155" && issues(t)}
@@ -566,7 +623,7 @@ export default function App() {
             registry={registry}
             dir={dir}
             holdings={holdings}
-            ctx={liveCtx}
+            ctx={ctx}
             account={account}
             client={client}
           />

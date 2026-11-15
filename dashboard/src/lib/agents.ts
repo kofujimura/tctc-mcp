@@ -57,6 +57,8 @@ export interface KnownContract {
   label?: string;
   /** built-in demo entries cannot be removed */
   builtin?: boolean;
+  /** targets: the kind of application this contract speaks for, when known */
+  via?: "contract" | "mcp" | "web";
 }
 
 export const DEFAULT_TARGETS: Record<number, KnownContract[]> = {
@@ -133,6 +135,7 @@ export interface TargetInfo {
   label: string;
   supports: boolean;
   roles: RoleInfo[];
+  via?: "contract" | "mcp" | "web";
 }
 
 export function mergeRoles(a: RoleInfo[], b: RoleInfo[]): RoleInfo[] {
@@ -168,6 +171,7 @@ export async function loadTargets(
         label: t.label ?? name ?? shortAddress(t.address),
         supports,
         roles,
+        via: t.via,
       };
     }),
   );
@@ -215,7 +219,7 @@ export function conferredRoles(targets: TargetInfo[]): Map<string, Conferred[]> 
   };
   for (const t of targets) {
     for (const r of t.roles) {
-      const c = { role: r.name, target: t.address, targetLabel: t.label };
+      const c = { role: r.name, target: t.address, targetLabel: t.label, via: t.via };
       for (const a of r.erc721) add(tokenKey(a), c);
       for (const b of r.erc1155) add(tokenKey(b.address, b.typeId), c);
     }

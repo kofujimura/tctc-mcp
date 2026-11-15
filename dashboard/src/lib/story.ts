@@ -20,7 +20,9 @@ import {
   type Conferred,
   type EffectiveRole,
   type HeldToken,
+  type KnownContract,
 } from "./agents";
+import { ICA2026_SEPOLIA } from "./deployment.ica2026";
 import type { Directory, PartyKind } from "./directory";
 
 export type Tone = "ok" | "warn" | "denied" | "idle";
@@ -68,8 +70,12 @@ export type StoryOp =
   | { op: "revoke"; from: string; token: string }
   /** make a held token expire `in` seconds after the scene starts */
   | { op: "expire"; of: string; token: string; in: number }
-  /** what a party is doing; `after` delays it (seconds from the scene start) */
-  | { op: "status"; who: string; text: string; tone: Tone; after?: number };
+  /**
+   * What a party is doing. `after` delays it (seconds from the scene start).
+   * `onExpiryOf` names a token of `who`: when the story is read from a chain,
+   * the status waits for that token to lapse there instead of for the clock.
+   */
+  | { op: "status"; who: string; text: string; tone: Tone; after?: number; onExpiryOf?: string };
 
 export interface StoryScene {
   title: string;
@@ -175,7 +181,7 @@ export const ICA2026: Story = {
         "The pass reaches its expiry. No transaction is sent and nobody is online: the door simply stops accepting it, and Kit reports the denial instead of retrying.",
       ops: [
         { op: "expire", of: "kit", token: "prod", in: 6 },
-        { op: "status", who: "kit", text: "Denied: deploy — the pass has expired", tone: "denied", after: 6 },
+        { op: "status", who: "kit", text: "Denied: deploy — the pass has expired", tone: "denied", after: 6, onExpiryOf: "prod" },
       ],
     },
     {
@@ -312,7 +318,7 @@ export const ICA2026_WIDE: Story = {
         "The manager's budget token reaches its expiry. No transaction is sent and nobody is online: every door simply stops accepting it.",
       ops: [
         { op: "expire", of: "payer", token: "budget", in: 6 },
-        { op: "status", who: "payer", text: "Denied: payment — the budget has expired", tone: "denied", after: 6 },
+        { op: "status", who: "payer", text: "Denied: payment — the budget has expired", tone: "denied", after: 6, onExpiryOf: "budget" },
       ],
     },
     {
@@ -343,6 +349,49 @@ export const STORIES: Record<string, Story> = {
   [ICA2026.id]: ICA2026,
   [ICA2026_WIDE.id]: ICA2026_WIDE,
 };
+
+// ─── a story on a real chain ────────────────────────────────────────────────
+
+/**
+ * Where a story's cast lives on a real chain: the address of each party,
+ * collection and door, by the ids the story uses. With one of these, the
+ * dashboard can show the story from chain state (?story=…&live) instead
+ * of replaying it; only the captions and status lines stay scripted.
+ */
+export interface StoryDeployment {
+  chainId: number;
+  parties: Record<string, Address>;
+  collections: Record<string, Address>;
+  doors: Record<string, Address>;
+}
+
+/** Deployments by story id. demo/ica2026/demo.mjs creates and drives the Sepolia one. */
+export const DEPLOYMENTS: Record<string, StoryDeployment> = {
+  [ICA2026.id]: ICA2026_SEPOLIA,
+};
+
+/** The same story with its made-up addresses replaced by a deployment's real ones. */
+export function deployed(story: Story, d: StoryDeployment): Story {
+  const real = (group: Record<string, Address>, id: string, what: string): Address => {
+    const address = group[id];
+    if (!address) throw new Error(`story: the deployment has no ${what} "${id}"`);
+    return address;
+  };
+  return {
+    ...story,
+    parties: story.parties.map((p) => ({ ...p, address: real(d.parties, p.id, "party") })),
+    collections: story.collections.map((c) => ({ ...c, address: real(d.collections, c.id, "collection") })),
+    doors: story.doors.map((x) => ({ ...x, address: real(d.doors, x.id, "door") })),
+  };
+}
+
+/** What the chain reader watches to show a deployed story: its doors as targets, and its collections. */
+export function storyWatch(story: Story): { targets: KnownContract[]; collections: KnownContract[] } {
+  return {
+    targets: story.doors.map((d) => ({ address: d.address, label: d.label, via: d.via, builtin: true })),
+    collections: story.collections.map((c) => ({ address: c.address, builtin: true })),
+  };
+}
 
 // ─── static view: cast, collections, what each token opens ─────────────────
 
@@ -437,12 +486,26 @@ export interface StoryState {
   status: Record<string, Activity>;
 }
 
+export interface ReplayOptions {
+  /**
+   * For a story read from a chain: has this holder's timed token lapsed
+   * there? Statuses tied to an expiry (`onExpiryOf`) follow this, not the clock.
+   */
+  lapsed?: (holder: string, token: string) => boolean;
+}
+
 /**
  * Apply scenes 0…entered.length-1, each at the moment it was entered
  * (ms), then the viewer's own clicks. Timed grants count from their
  * scene's entry, so a countdown keeps running across re-renders.
  */
-export function replay(story: Story, entered: number[], manual: StoryOp[], nowMs: number): StoryState {
+export function replay(
+  story: Story,
+  entered: number[],
+  manual: StoryOp[],
+  nowMs: number,
+  options: ReplayOptions = {},
+): StoryState {
   const state: StoryState = { grants: [], status: {} };
   const apply = (op: StoryOp, atMs: number) => {
     const at = Math.floor(atMs / 1000);
@@ -459,8 +522,12 @@ export function replay(story: Story, entered: number[], manual: StoryOp[], nowMs
       state.grants = state.grants.map((g) =>
         g.holder === op.of && g.token === op.token ? { ...g, expiresAt: at + op.in } : g,
       );
-    } else if (nowMs >= atMs + (op.after ?? 0) * 1000) {
-      state.status[op.who] = { text: op.text, tone: op.tone };
+    } else {
+      const due =
+        op.onExpiryOf && options.lapsed
+          ? options.lapsed(op.who, op.onExpiryOf)
+          : nowMs >= atMs + (op.after ?? 0) * 1000;
+      if (due) state.status[op.who] = { text: op.text, tone: op.tone };
     }
   };
   entered.forEach((atMs, i) => story.scenes[i]?.ops.forEach((op) => apply(op, atMs)));
@@ -511,6 +578,15 @@ export function storyActivity(story: Story, state: StoryState): Map<string, Acti
     if (a) out.set(p.address.toLowerCase(), a);
   }
   return out;
+}
+
+/** For a deployed story: whether a holder's timed token has lapsed, according to the chain reader. */
+export function lapsedOnChain(story: Story, states: Map<string, AgentState>): ReplayOptions["lapsed"] {
+  const ix = index(story);
+  return (holder, token) => {
+    const state = states.get(ix.party(holder).address.toLowerCase());
+    return Boolean(state?.lapsed.some((t) => t.key === ix.keyOf(token)));
+  };
 }
 
 /** The op for the viewer burning a token it issued, or undefined if it cannot. */

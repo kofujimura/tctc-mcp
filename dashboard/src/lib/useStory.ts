@@ -8,6 +8,7 @@ import {
   storyStates,
   storyView,
   type Activity,
+  type ReplayOptions,
   type Story,
   type StoryOp,
   type StoryView,
@@ -18,6 +19,8 @@ export interface StoryApi {
   view: StoryView;
   states: Map<string, AgentState>;
   activity: Map<string, Activity>;
+  /** the same statuses, with expiry-bound ones following a chain instead of the clock */
+  activityFor: (lapsed: ReplayOptions["lapsed"]) => Map<string, Activity>;
   /** index of the scene on screen */
   scene: number;
   next: () => void;
@@ -96,12 +99,19 @@ export function useStory(story: Story | undefined, startScene: number): StoryApi
     [story, state],
   );
 
+  const activityFor = useCallback(
+    (lapsed: ReplayOptions["lapsed"]) =>
+      story ? storyActivity(story, replay(story, entered, manual, now, { lapsed })) : new Map<string, Activity>(),
+    [story, entered, manual, now],
+  );
+
   if (!story || !view) return undefined;
   return {
     story,
     view,
     states,
     activity,
+    activityFor,
     scene: entered.length - 1,
     next,
     prev,

@@ -7,16 +7,28 @@
  */
 import { describe, it, expect } from "vitest";
 import type { Address } from "viem";
-import { diffSnapshots, tokenKey, type AgentEntry, type CollectionMeta, type HeldToken } from "../dashboard/src/lib/agents.js";
+import {
+  conferredRoles,
+  diffSnapshots,
+  tokenKey,
+  type AgentEntry,
+  type CollectionMeta,
+  type HeldToken,
+} from "../dashboard/src/lib/agents.js";
+import { roleHash } from "../dashboard/src/lib/core.js";
 import { mergeDirectory, type Directory } from "../dashboard/src/lib/directory.js";
 import {
+  DEPLOYMENTS,
   ICA2026,
   STORIES,
+  deployed,
+  lapsedOnChain,
   manualRevoke,
   replay,
   storyActivity,
   storyStates,
   storyView,
+  storyWatch,
 } from "../dashboard/src/lib/story.js";
 import { issuedBy, issuerKinds, permitView, resolveParty, type ViewContext } from "../dashboard/src/lib/world.js";
 
@@ -225,6 +237,91 @@ describe("stories", () => {
       const agent = view.agents[0].address;
       expect(manualRevoke(story, agent, release.key)).toEqual({ op: "revoke", from: "kit", token: "release" });
       expect(manualRevoke(story, agent, pass.key)).toBeUndefined();
+    });
+  });
+
+  describe("a story read from a chain", () => {
+    const deployment = DEPLOYMENTS[ICA2026.id];
+    const live = deployed(ICA2026, deployment);
+
+    it("has a deployment that covers the whole cast", () => {
+      expect(deployment.chainId).toBe(11155111);
+      for (const p of live.parties) expect(p.address).toBe(deployment.parties[p.id]);
+      for (const c of live.collections) expect(c.address).toBe(deployment.collections[c.id]);
+      for (const d of live.doors) expect(d.address).toBe(deployment.doors[d.id]);
+      // made-up addresses are gone, and nothing else about the story changed
+      expect(JSON.stringify(live.parties)).not.toContain("0x1000000000");
+      expect(live.scenes).toBe(ICA2026.scenes);
+    });
+
+    it("refuses a deployment that lacks one of the story's contracts", () => {
+      const { files: _missing, ...doors } = deployment.doors;
+      expect(() => deployed(ICA2026, { ...deployment, doors })).toThrow(/no door "files"/);
+    });
+
+    it("watches the story's applications as targets, each with its kind, and its collections", () => {
+      const watch = storyWatch(live);
+      expect(watch.targets.map((t) => [t.label, t.via])).toEqual([
+        ["Project files", "mcp"],
+        ["Agent memory", "mcp"],
+        ["Summary API", "web"],
+        ["Release registry", "contract"],
+        ["Deploy pipeline", "web"],
+        ["Issuing delegations", "contract"],
+      ]);
+      expect(watch.collections.map((c) => c.address)).toEqual(live.collections.map((c) => c.address));
+      // the delegation collection is also a target: the right to issue is bound to a token
+      expect(deployment.doors.delegations).toBe(deployment.collections.mine);
+    });
+
+    it("labels the real tokens and issuers the way the scripted story does", () => {
+      const view = storyView(live);
+      const key = tokenKey(deployment.collections.mine, 1n);
+      expect(view.directory.tokens[key]?.title).toBe("Release assistant");
+      expect(view.directory.parties[deployment.parties.acme.toLowerCase()]).toMatchObject({
+        name: "Acme Corp",
+        kind: "employer",
+      });
+      expect(view.me).toBe(deployment.parties.mika);
+    });
+
+    it("carries a target's application kind onto the tokens bound there", () => {
+      const conferred = conferredRoles([
+        {
+          address: deployment.doors.files,
+          label: "Project files",
+          supports: true,
+          via: "mcp",
+          roles: [
+            {
+              name: "AGENT_ROLE",
+              hash: roleHash("AGENT_ROLE"),
+              erc721: [],
+              erc1155: [{ address: deployment.collections.mine, typeId: 1n }],
+            },
+          ],
+        },
+      ]);
+      expect(conferred.get(tokenKey(deployment.collections.mine, 1n))).toEqual([
+        { role: "AGENT_ROLE", target: deployment.doors.files, targetLabel: "Project files", via: "mcp" },
+      ]);
+    });
+
+    it("shows the denial when the pass lapses on the chain, not when the script's clock says so", () => {
+      const kitAddress = deployment.parties.kit.toLowerCase();
+      const pass: HeldToken = { ...held(deployment.collections.ops, 1n), balance: 0n, expiresAt: 1n };
+      const chain = (lapsed: HeldToken[]) =>
+        new Map([[kitAddress, { tokens: [], lapsed, roles: [], failed: [], checkedAt: 0 }]]);
+      const entered = [T0, T0, T0, T0];
+      const status = (lapsed: HeldToken[], later: number) =>
+        replay(live, entered, [], T0 + later * 1000, { lapsed: lapsedOnChain(live, chain(lapsed)) }).status.kit;
+
+      // long after the script's six seconds, but the chain still honours the pass
+      expect(status([], 60).text).toBe("Deploying release 2.4");
+      // the chain reports the lapse: the denial shows at once
+      expect(status([pass], 1).text).toBe("Denied: deploy — the pass has expired");
+      // without a chain, the script's clock decides as before
+      expect(replay(live, entered, [], T0 + 7000).status.kit.tone).toBe("denied");
     });
   });
 });

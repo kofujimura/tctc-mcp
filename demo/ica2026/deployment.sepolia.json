@@ -1,0 +1,21 @@
+{
+  "chainId": 11155111,
+  "parties": {
+    "mika": "0xd93366e73a106e0a499fc4959C27d68B3bF6F3Fa",
+    "acme": "0x31F8FDf2BA077c0f39852b6daAE028a5A7475d03",
+    "kit": "0x0e974f1ea52A871462C521036525e36bC6e207a5"
+  },
+  "collections": {
+    "staff": "0xb7869dfda024222865c6261b79888f7815a067e5",
+    "mine": "0xa39e5a8314a1a5f513fae883083863f596c023c2",
+    "ops": "0x928da88b3e60a20f0fb5577955c82c9f30ba10a6"
+  },
+  "doors": {
+    "files": "0x69c3e911b9e0abe376f3aef5c5f1beef130d1204",
+    "memory": "0xc9c8f26b400ae63144ebd2531f1da8195093135e",
+    "summary": "0x61f042810365ef90717fed09c42c2adcf1bbd194",
+    "registry": "0xdc37762319742c222e0b8e95b0596185b1f0e47f",
+    "deploy": "0x7802308ee712d3b146c4a928b9eaaae504f54cc1",
+    "delegations": "0xa39e5a8314a1a5f513fae883083863f596c023c2"
+  }
+}
