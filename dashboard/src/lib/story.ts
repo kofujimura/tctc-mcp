@@ -219,10 +219,10 @@ export const ICA2026_WIDE: Story = {
   title: "Many issuers",
   me: "mika",
   parties: [
-    { id: "mika", address: fake("1000", 1), name: "Mika Sato", kind: "you", note: "Accountant · Acme Corp", avatar: "person:18" },
+    { id: "mika", address: fake("1000", 1), name: "Aya Tanaka", kind: "you", note: "Accountant · Acme Corp", avatar: "person:18" },
     { id: "acme", address: fake("2000", 1), name: "Acme Corp", kind: "employer" },
     { id: "tax", address: fake("3000", 1), name: "Tax Agency", kind: "government" },
-    { id: "kenji", address: fake("4000", 1), name: "Kenji Mori", kind: "manager", note: "Mika's manager" },
+    { id: "kenji", address: fake("4000", 1), name: "Kenji Mori", kind: "manager", note: "Aya's manager" },
     { id: "ledger", address: fake("a100", 1), name: "Ledger", kind: "agent", note: "Bookkeeping agent", avatar: "bot:212:5" },
     { id: "payer", address: fake("a200", 2), name: "Payer", kind: "agent", note: "Payments agent", avatar: "bot:28:74" },
     { id: "filer", address: fake("a300", 3), name: "Filer", kind: "agent", note: "Tax-filing agent", avatar: "bot:268:17" },
@@ -232,7 +232,7 @@ export const ICA2026_WIDE: Story = {
     { id: "staff", address: fake("c100", 1), name: "Acme Staff Credentials", issuer: "acme" },
     { id: "licence", address: fake("c200", 1), name: "Tax Agency Licences", issuer: "tax" },
     { id: "finance", address: fake("c300", 1), name: "Acme Finance Approvals", issuer: "kenji" },
-    { id: "mine", address: fake("c400", 1), name: "Mika's Delegations", issuer: "mika" },
+    { id: "mine", address: fake("c400", 1), name: "Aya's Delegations", issuer: "mika" },
     { id: "agentpass", address: fake("c500", 1), name: "Acme Agent Passes", issuer: "acme" },
     { id: "registry", address: fake("c600", 1), name: "Tax Agency Registrations", issuer: "tax" },
     { id: "tickets", address: fake("c700", 1), name: "Ledger's Task Tickets", issuer: "ledger" },
@@ -244,7 +244,7 @@ export const ICA2026_WIDE: Story = {
     { id: "payContract", address: fake("d400", 1), label: "Payments contract", via: "contract" },
     { id: "taxDocs", address: fake("d500", 1), label: "Tax documents", via: "mcp" },
     { id: "portal", address: fake("d600", 1), label: "e-Filing portal", via: "web" },
-    { id: "delegations", address: fake("d700", 1), label: "Mika's Delegations", via: "contract" },
+    { id: "delegations", address: fake("d700", 1), label: "Aya's Delegations", via: "contract" },
   ],
   tokens: [
     // held by the human
@@ -264,9 +264,9 @@ export const ICA2026_WIDE: Story = {
   ],
   scenes: [
     {
-      title: "Mika's own credentials",
+      title: "Aya's own credentials",
       caption:
-        "Mika is an accountant. What she may do is a set of tokens issued by her employer, a government agency and her manager. Her agents hold nothing yet, so they can do nothing.",
+        "Aya is an accountant. What she may do is a set of tokens issued by her employer, a government agency and her manager. Her agents hold nothing yet, so they can do nothing.",
       ops: [
         { op: "grant", to: "mika", token: "employee" },
         { op: "grant", to: "mika", token: "accountant" },
@@ -280,7 +280,7 @@ export const ICA2026_WIDE: Story = {
     {
       title: "She delegates",
       caption:
-        "Mika gives each agent one job by minting a delegation token to it. The token cannot be passed on, and she alone can burn it.",
+        "Aya gives each agent one job by minting a delegation token to it. The token cannot be passed on, and she alone can burn it.",
       ops: [
         { op: "grant", to: "ledger", token: "dBook" },
         { op: "grant", to: "payer", token: "dPay" },
@@ -324,13 +324,13 @@ export const ICA2026_WIDE: Story = {
     {
       title: "Something goes wrong",
       caption:
-        "A poisoned document steers Filer off its task. Mika does not need the agent's cooperation to stop it.",
+        "A poisoned document steers Filer off its task. Aya does not need the agent's cooperation to stop it.",
       ops: [{ op: "status", who: "filer", text: "Off task: trying to e-mail client data", tone: "warn" }],
     },
     {
       title: "One burn, every door",
       caption:
-        "Mika burns one token. The portal and the MCP tools read the same ledger, so both close at once. The agency's registration is untouched, and useless without her delegation.",
+        "Aya burns one token. The portal and the MCP tools read the same ledger, so both close at once. The agency's registration is untouched, and useless without her delegation.",
       ops: [
         { op: "revoke", from: "filer", token: "dFile" },
         { op: "status", who: "filer", text: "Denied at every door — delegation revoked", tone: "denied" },

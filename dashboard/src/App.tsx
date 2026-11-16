@@ -576,7 +576,7 @@ export default function App() {
               explorer={preset.explorer}
               activity={liveActivity}
               showVerified={false}
-              ghostMs={20000}
+              ghostMs={(Number(boot.get("ghost")) || 20) * 1000}
               canRevoke={(_holder, t) => t.standard === "erc1155" && issues(t)}
               onRevoke={revokeLive}
               renderGrant={renderGrant}

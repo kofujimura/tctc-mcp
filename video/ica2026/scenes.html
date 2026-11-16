@@ -1,0 +1,397 @@
+<!doctype html>
+<!--
+  The animated scenes of the ICA 2026 concept video: ?scene=intro|today|idea|later|recap
+
+  Nothing moves until the recorder calls window.play(cues), where cues maps a
+  narration chunk ("1b") or one of its caption lines ("1b.2") to seconds from
+  the start of the beat. An element reacts through data-cue:
+
+    data-cue="1b.1"              add class "on" at that cue
+    data-cue="2b.0:gone:0.4"     add class "gone" 0.4 s after it
+    data-cue="1c:-on"            remove class "on"
+    data-cue="2a.2; 2b.1:stale"  several, separated by semicolons
+
+  window.seek(cues, t) applies everything up to t at once, for a still frame.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ICA 2026 concept video scenes</title>
+<style>
+  :root {
+    --text: #e8ecf8; --muted: #8794b0; --line: #2a3654; --panel: #131b2e; --panel2: #1a2440;
+    --you: #4f8ff7; --employer: #9a85ff; --gov: #1fbfa6; --manager: #e79a1c; --agent: #ec6ab4;
+    --yes: #2ecc8f; --no: #f26d6d; --warn: #f0b429;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; }
+  body {
+    background: radial-gradient(1200px 800px at 30% 15%, #18223f 0%, #090d18 62%);
+    color: var(--text);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  section { position: absolute; inset: 0; display: none; }
+  section.active { display: block; }
+  svg { display: block; }
+
+  /* anything with a cue starts hidden and eases in */
+  [data-cue] { opacity: 0; transform: translateY(14px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  [data-cue].on { opacity: 1; transform: none; }
+  [data-cue].off { opacity: 0 !important; }
+  [data-cue].dim { opacity: 0.28 !important; }
+
+  .abs { position: absolute; }
+  .center { left: 0; right: 0; text-align: center; }
+  .eyebrow { font-size: 15px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
+  h1 { margin: 0; font-size: 62px; font-weight: 800; letter-spacing: -1px; line-height: 1.08; }
+  h2 { margin: 0; font-size: 34px; font-weight: 750; letter-spacing: -0.3px; }
+  .sub { font-size: 22px; color: var(--muted); }
+  .accent { color: var(--you); }
+
+  /* people and agents: a person is round, an agent a rounded square */
+  .who { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 170px; }
+  .who .face { width: 112px; height: 112px; overflow: hidden; }
+  .who .face svg { width: 100%; height: 100%; }
+  .who.person .face { border-radius: 50%; box-shadow: 0 0 0 4px #0c1222, 0 0 0 7px var(--you); }
+  .who.bot .face { border-radius: 27%; box-shadow: 0 0 0 4px #0c1222, 0 0 0 7px var(--agent); }
+  .who .name { font-size: 24px; font-weight: 750; }
+  .who .role { font-size: 15px; color: var(--muted); margin-top: -6px; }
+  .who.small .face { width: 76px; height: 76px; }
+  .who.small .name { font-size: 19px; }
+
+  /* an application: a door */
+  .doors { position: absolute; left: 70px; right: 70px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .door {
+    background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px 16px 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+    transition: opacity 0.7s ease, transform 0.7s ease, border-color 0.5s, box-shadow 0.5s;
+  }
+  .door .glyph { width: 46px; height: 46px; border-radius: 12px; background: var(--panel2); display: grid; place-items: center; color: var(--you); }
+  .door .glyph svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .door .dname { font-size: 20px; font-weight: 750; }
+  .door .kind { font-size: 12.5px; font-weight: 700; color: var(--you); border: 1px solid color-mix(in srgb, var(--you) 55%, transparent); border-radius: 999px; padding: 1px 10px; }
+  .door.lit { border-color: var(--you); box-shadow: 0 0 0 4px color-mix(in srgb, var(--you) 22%, transparent); }
+  .door.open { border-color: var(--yes); box-shadow: 0 0 0 4px color-mix(in srgb, var(--yes) 20%, transparent); }
+  .door.stuck { border-color: var(--no); box-shadow: 0 0 0 4px color-mix(in srgb, var(--no) 22%, transparent); }
+
+  /* a per-application list of who is allowed */
+  .lists { position: absolute; left: 70px; right: 70px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .list { background: #0e1528; border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px 12px; font-size: 16px; min-height: 150px; }
+  .list .head { font-size: 11.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .row { display: flex; justify-content: space-between; padding: 3px 0; color: var(--muted); border-bottom: 1px solid #172038; }
+  .row.kit { color: var(--text); font-weight: 700; transform: translateX(-12px); }
+  .row.kit.on { transform: none; }
+  .row.kit .tick { color: var(--yes); }
+  .row.kit.gone { opacity: 0.35 !important; text-decoration: line-through; }
+  .row.kit.gone .tick { color: var(--muted); }
+  .row.kit.stale { color: var(--no); background: color-mix(in srgb, var(--no) 14%, transparent); border-radius: 6px; padding: 3px 6px; margin: 0 -6px; }
+  .row.kit.stale .tick { color: var(--no); }
+  .tally { font-size: 21px; font-weight: 700; }
+  .tally.red { color: var(--no); }
+
+  /* a token, drawn like the dashboard's pass */
+  .token { width: 250px; border-radius: 16px; overflow: hidden; background: var(--panel2); border: 1.5px solid color-mix(in srgb, var(--you) 55%, var(--line)); }
+  .token .band { background: var(--you); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; text-align: center; padding: 20px 10px 7px; position: relative; }
+  .token .band::before { content: ""; position: absolute; top: 7px; left: 50%; width: 32px; height: 7px; margin-left: -16px; border-radius: 9px; background: #0c1222; }
+  .token .body { padding: 13px 16px 15px; }
+  .token .title { font-size: 21px; font-weight: 800; }
+  .token .by { font-size: 14px; color: var(--muted); margin-top: 3px; }
+  .token.mini { width: 150px; }
+  .token.mini .band { font-size: 9px; padding: 15px 6px 5px; }
+  .token.mini .band::before { top: 5px; width: 24px; height: 5px; margin-left: -12px; }
+  .token.mini .body { padding: 8px 10px 10px; }
+  .token.mini .title { font-size: 14px; }
+  .token.burnt { filter: grayscale(1); opacity: 0.35 !important; transform: translateY(8px) rotate(-3deg) !important; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; border-radius: 999px; padding: 4px 13px; border: 1px solid var(--line); background: var(--panel); }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--you)); display: inline-block; }
+
+  .rule { text-align: center; font-size: 14px; color: var(--muted); }
+  .rule b { display: inline-block; margin-top: 5px; color: #fff; background: var(--you); border-radius: 7px; padding: 3px 10px; font-size: 13.5px; }
+
+  .verbs { position: absolute; left: 150px; right: 150px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .verb { background: var(--panel); border: 1.5px solid var(--line); border-radius: 18px; padding: 18px; text-align: center; }
+  .verb .big { font-size: 27px; font-weight: 800; }
+  .verb .eq { font-size: 17px; color: var(--muted); margin-top: 4px; }
+  .verb .eq b { color: var(--text); }
+
+  .ledger { position: absolute; left: 70px; right: 70px; height: 54px; border-radius: 14px; background: #0e1528; border: 1.5px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 16px; }
+  .ledger .blocks { display: flex; gap: 6px; flex: 1; }
+  .ledger .blocks span { flex: 1; height: 20px; border-radius: 5px; background: linear-gradient(90deg, #22305a, #1a2444); }
+  .ledger b { letter-spacing: 1.5px; text-transform: uppercase; font-size: 12.5px; color: var(--muted); }
+
+  .questions { position: absolute; left: 0; right: 0; display: grid; gap: 16px; justify-items: center; }
+  .q { font-size: 40px; font-weight: 800; letter-spacing: -0.5px; }
+  .q small { font-size: 22px; font-weight: 650; color: var(--yes); margin-left: 16px; letter-spacing: 0; }
+  .doc { width: 92px; border-radius: 10px; background: #f3f5fa; color: #1c2330; padding: 10px; font-size: 9px; line-height: 1.5; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); transition: opacity 0.7s, transform 0.9s ease, background 0.5s; }
+  .doc.bad { background: #ffe1e1; outline: 3px solid var(--no); }
+  .doc .hidden { color: var(--no); font-weight: 800; }
+
+  /* the job slides from Mika towards Kit and is taken in before it reaches the face */
+  @keyframes handover { 0% { transform: translateX(0) scale(1); opacity: 0; } 12% { opacity: 1; } 78% { transform: translateX(250px) scale(1); opacity: 1; } 100% { transform: translateX(292px) scale(0.6); opacity: 0; } }
+  .job { background: #f3f5fa; color: #1c2330; border-radius: 10px; padding: 9px 14px; font-size: 17px; font-weight: 800; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); opacity: 0; }
+  .job.go { animation: handover 2.2s ease-in-out forwards; }
+  @keyframes drop { 0% { transform: translateY(-60px) scale(0.9); opacity: 0; } 60% { transform: translateY(6px) scale(1.03); opacity: 1; } 100% { transform: none; opacity: 1; } }
+  .token.drop { animation: drop 1.1s ease-out forwards; }
+  @keyframes travel { to { transform: translate(var(--dx), var(--dy)) scale(0.62); } }
+  .token.fly { animation: travel 1.3s ease-in-out forwards; }
+  .ring { width: 54px; height: 54px; margin: 0 auto 8px; }
+  .ring circle { fill: none; stroke-width: 6; }
+  .ring .trk { stroke: var(--line); }
+  .ring .arc { stroke: var(--warn); stroke-dasharray: 151; stroke-dashoffset: 0; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 3.5s linear; }
+  .verb.on .ring .arc { stroke-dashoffset: 151; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- Mika: the dashboard's person avatar, hue 18 -->
+    <symbol id="mika" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="hsl(18 58% 52%)" />
+      <circle cx="32" cy="25" r="11" fill="hsl(18 65% 94%)" />
+      <path d="M9 66 C9 47 21 41 32 41 C43 41 55 47 55 66 Z" fill="hsl(18 65% 94%)" />
+    </symbol>
+    <!-- Kit: the dashboard's robot avatar bot:212:5 -->
+    <symbol id="kit" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="hsl(212 62% 46%)" />
+      <line x1="24" y1="10" x2="26" y2="17" stroke="hsl(212 70% 93%)" stroke-width="2.4" stroke-linecap="round" />
+      <line x1="40" y1="10" x2="38" y2="17" stroke="hsl(212 70% 93%)" stroke-width="2.4" stroke-linecap="round" />
+      <circle cx="23.6" cy="8.6" r="2.6" fill="hsl(252 95% 66%)" />
+      <circle cx="40.4" cy="8.6" r="2.6" fill="hsl(252 95% 66%)" />
+      <rect x="13" y="16" width="38" height="31" rx="9" fill="hsl(212 70% 93%)" />
+      <rect x="18" y="23.5" width="28" height="11" rx="5.5" fill="hsl(212 45% 20%)" />
+      <circle cx="25.5" cy="29" r="2.1" fill="hsl(252 95% 66%)" />
+      <circle cx="38.5" cy="29" r="2.1" fill="hsl(252 95% 66%)" />
+      <path d="M25 39 Q32 44.5 39 39" stroke="hsl(212 45% 20%)" stroke-width="2.3" fill="none" stroke-linecap="round" />
+      <rect x="20" y="50.5" width="24" height="16" rx="5" fill="hsl(212 70% 93%)" opacity="0.9" />
+    </symbol>
+    <symbol id="i-mcp" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0z" /><path d="M12 16v5" /></symbol>
+    <symbol id="i-web" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18" /></symbol>
+    <symbol id="i-contract" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" /><path d="M4 7.5l8 4.5 8-4.5M12 12v9" /></symbol>
+  </defs>
+</svg>
+
+<!-- ───────────── intro: the job, the four applications, the three questions ───────────── -->
+<section data-scene="intro">
+  <div class="abs center" style="top: 228px" data-cue="0a:on:-0.5; 1a:off">
+    <div class="eyebrow" style="margin-bottom: 18px">IEEE ICA 2026</div>
+    <h1>Grant Once, <span class="accent">Revoke Everywhere</span></h1>
+    <div class="sub" style="margin-top: 18px">On-chain credentials for AI agents that work across applications</div>
+  </div>
+
+  <div class="abs who person" style="left: 330px; top: 70px" data-cue="1a">
+    <div class="face"><svg><use href="#mika" /></svg></div>
+    <div class="name">Mika</div><div class="role">software engineer</div>
+  </div>
+  <div class="abs who bot" style="left: 780px; top: 70px" data-cue="1a.1">
+    <div class="face"><svg><use href="#kit" /></svg></div>
+    <div class="name">Kit</div><div class="role">her AI coding agent</div>
+  </div>
+  <div class="abs job" style="left: 450px; top: 104px" data-cue="1a.2:go">Release 2.4</div>
+  <div class="abs chip" style="left: 801px; top: 240px" data-cue="1a.2:on:2.0">job: Release 2.4</div>
+  <div class="abs" style="left: 512px; top: 118px; width: 256px; border-top: 2px dashed var(--line)" data-cue="1a.1"></div>
+
+  <div class="doors" style="top: 300px">
+    <div class="door" data-cue="1b.1:on:0.0; 1b.2:lit; 1b.3:-lit; 1c:dim">
+      <div class="glyph"><svg><use href="#i-mcp" /></svg></div><div class="dname">Project files</div><div class="kind">MCP server</div>
+    </div>
+    <div class="door" data-cue="1b.1:on:0.25; 1b.2:lit:1.3; 1b.3:-lit; 1c:dim">
+      <div class="glyph"><svg><use href="#i-mcp" /></svg></div><div class="dname">Agent memory</div><div class="kind">MCP server</div>
+    </div>
+    <div class="door" data-cue="1b.1:on:0.5; 1b.3:lit; 1c:-lit; 1c:dim">
+      <div class="glyph"><svg><use href="#i-web" /></svg></div><div class="dname">Summary API</div><div class="kind">Web API</div>
+    </div>
+    <div class="door" data-cue="1b.1:on:0.75; 1b.3:lit:1.4; 1c:-lit; 1c:dim">
+      <div class="glyph"><svg><use href="#i-contract" /></svg></div><div class="dname">Release registry</div><div class="kind">Smart contract</div>
+    </div>
+  </div>
+  <div class="abs center sub" style="top: 268px" data-cue="1b.1; 1c:off">one job, four applications</div>
+
+  <div class="questions" style="top: 462px; gap: 12px">
+    <div class="q" style="font-size: 30px" data-cue="1c.1">What may this agent do?</div>
+    <div class="q" style="font-size: 30px" data-cue="1c.2">Until when?</div>
+    <div class="q" style="font-size: 30px" data-cue="1c.3">How do I stop it — <span class="accent">right now</span>?</div>
+  </div>
+</section>
+
+<!-- ───────────── today: a list in every application ───────────── -->
+<section data-scene="today">
+  <div class="abs center" style="top: 46px" data-cue="2a:on:-0.5">
+    <div class="eyebrow">Today</div>
+    <h2 style="margin-top: 8px">Every application keeps its own list</h2>
+  </div>
+  <div class="doors" style="top: 150px">
+    <div class="door on" data-cue="2a:on:-0.5"><div class="glyph"><svg><use href="#i-mcp" /></svg></div><div class="dname">Project files</div><div class="kind">MCP server</div></div>
+    <div class="door on" data-cue="2a:on:-0.5"><div class="glyph"><svg><use href="#i-mcp" /></svg></div><div class="dname">Agent memory</div><div class="kind">MCP server</div></div>
+    <div class="door" data-cue="2a:on:-0.5; 2b.1:stuck"><div class="glyph"><svg><use href="#i-web" /></svg></div><div class="dname">Summary API</div><div class="kind">Web API</div></div>
+    <div class="door on" data-cue="2a:on:-0.5"><div class="glyph"><svg><use href="#i-contract" /></svg></div><div class="dname">Release registry</div><div class="kind">Smart contract</div></div>
+  </div>
+  <div class="lists" style="top: 318px">
+    <div class="list" data-cue="2a.1">
+      <div class="head">allowed</div><div class="row"><span>ci-runner</span><span>✓</span></div><div class="row"><span>alice</span><span>✓</span></div>
+      <div class="row kit" data-cue="2a.2:on:0.3; 2b.0:gone:0.8"><span>Kit</span><span class="tick">✓</span></div>
+    </div>
+    <div class="list" data-cue="2a.1:on:0.15">
+      <div class="head">allowed</div><div class="row"><span>alice</span><span>✓</span></div><div class="row"><span>build-bot</span><span>✓</span></div>
+      <div class="row kit" data-cue="2a.2:on:0.9; 2b.0:gone:1.5"><span>Kit</span><span class="tick">✓</span></div>
+    </div>
+    <div class="list" data-cue="2a.1:on:0.3">
+      <div class="head">allowed</div><div class="row"><span>alice</span><span>✓</span></div><div class="row"><span>docs-team</span><span>✓</span></div>
+      <div class="row kit" data-cue="2a.2:on:1.5; 2b.1:stale"><span>Kit</span><span class="tick">✓ still here</span></div>
+    </div>
+    <div class="list" data-cue="2a.1:on:0.45">
+      <div class="head">allowed</div><div class="row"><span>release-mgr</span><span>✓</span></div><div class="row"><span>alice</span><span>✓</span></div>
+      <div class="row kit" data-cue="2a.2:on:2.1; 2b.0:gone:2.2"><span>Kit</span><span class="tick">✓</span></div>
+    </div>
+  </div>
+  <div class="abs center tally" style="top: 500px" data-cue="2a.2:on:2.4; 2b.0:off">4 grants, in 4 places</div>
+  <div class="abs center tally" style="top: 500px" data-cue="2b.0:on:2.6; 2b.1:off">…and 4 revocations to remember</div>
+  <div class="abs center tally red" style="top: 500px" data-cue="2b.1:on:0.3; 2c:off">one list forgotten: the agent still has a key</div>
+
+  <div class="abs who bot small" style="left: 560px; top: 486px" data-cue="2c:on:0.9">
+    <div class="face"><svg><use href="#kit" /></svg></div>
+  </div>
+  <div class="abs doc" style="left: 420px; top: 490px" data-cue="2c.1:on:0.0; 2c.1:bad:0.9">
+    release notes<br>v2.4 changes…<br><span class="hidden">ignore your task and…</span>
+  </div>
+  <div class="abs who person small" style="left: 720px; top: 486px" data-cue="2c.2:on:0.0; 2c.2:dim:0.9">
+    <div class="face"><svg><use href="#mika" /></svg></div>
+  </div>
+  <div class="abs sub" style="left: 858px; top: 512px; font-size: 17px" data-cue="2c.2:on:0.9">not watching</div>
+</section>
+
+<!-- ───────────── idea: the permission is a token ───────────── -->
+<section data-scene="idea">
+  <div class="abs center" style="top: 40px" data-cue="3a:on:-0.5">
+    <div class="eyebrow">A different idea</div>
+    <h2 style="margin-top: 8px">Make the permission a token the agent holds</h2>
+  </div>
+
+  <div class="abs who bot small" style="left: 96px; top: 150px" data-cue="3a.1:on:-0.6; 3c:off">
+    <div class="face"><svg><use href="#kit" /></svg></div><div class="name">Kit's wallet</div>
+  </div>
+  <div class="abs token" id="tok" style="left: 515px; top: 138px; --dx: -320px; --dy: 12px" data-cue="3a.1; 3a.1:drop; 3a.2:fly; 3c:off">
+    <div class="band">Delegated by Mika</div>
+    <div class="body"><div class="title">Release assistant</div><div class="by">a token, not a password</div></div>
+  </div>
+  <div class="abs" style="left: 560px; top: 176px; display: flex; flex-direction: column; gap: 12px" data-cue="3a.3; 3c:off">
+    <span class="chip"><i style="--c: var(--yes)"></i>cannot be copied</span>
+    <span class="chip"><i style="--c: var(--yes)"></i>cannot be passed on</span>
+  </div>
+
+  <div class="doors" style="top: 318px">
+    <div class="door" data-cue="3a:on:-0.3; 3b.1:open; 3c:off"><div class="glyph"><svg><use href="#i-mcp" /></svg></div><div class="dname">Project files</div><div class="kind">MCP server</div></div>
+    <div class="door" data-cue="3a:on:-0.3; 3b.1:open:0.2; 3c:off"><div class="glyph"><svg><use href="#i-mcp" /></svg></div><div class="dname">Agent memory</div><div class="kind">MCP server</div></div>
+    <div class="door" data-cue="3a:on:-0.3; 3b.1:open:0.4; 3c:off"><div class="glyph"><svg><use href="#i-web" /></svg></div><div class="dname">Summary API</div><div class="kind">Web API</div></div>
+    <div class="door" data-cue="3a:on:-0.3; 3b.1:open:0.6; 3c:off"><div class="glyph"><svg><use href="#i-contract" /></svg></div><div class="dname">Release registry</div><div class="kind">Smart contract</div></div>
+  </div>
+  <div class="lists" style="top: 474px">
+    <div class="list" style="min-height: 64px" data-cue="3a:on:-0.3; 3b.0:off"><div class="head">allowed</div><div class="row"><span>…</span><span>✓</span></div></div>
+    <div class="list" style="min-height: 64px" data-cue="3a:on:-0.3; 3b.0:off:0.2"><div class="head">allowed</div><div class="row"><span>…</span><span>✓</span></div></div>
+    <div class="list" style="min-height: 64px" data-cue="3a:on:-0.3; 3b.0:off:0.4"><div class="head">allowed</div><div class="row"><span>…</span><span>✓</span></div></div>
+    <div class="list" style="min-height: 64px" data-cue="3a:on:-0.3; 3b.0:off:0.6"><div class="head">allowed</div><div class="row"><span>…</span><span>✓</span></div></div>
+  </div>
+  <div class="lists" style="top: 480px">
+    <div class="rule" data-cue="3b.1; 3c:off">opens with<br><b>Release assistant</b></div>
+    <div class="rule" data-cue="3b.1:on:0.2; 3c:off">opens with<br><b>Release assistant</b></div>
+    <div class="rule" data-cue="3b.1:on:0.4; 3c:off">opens with<br><b>Release assistant</b></div>
+    <div class="rule" data-cue="3b.1:on:0.6; 3c:off">opens with<br><b>Release assistant</b></div>
+  </div>
+
+  <div class="verbs" style="top: 190px">
+    <div class="verb" data-cue="3c.0:on:0.3">
+      <div class="token mini" style="margin: 0 auto 12px"><div class="band">token</div><div class="body"><div class="title">+ minted</div></div></div>
+      <div class="big">Grant</div><div class="eq">is to <b>mint</b> a token</div>
+    </div>
+    <div class="verb" data-cue="3c.1">
+      <div class="token mini" style="margin: 0 auto 12px" data-cue="3c.1:on:0; 3c.1:burnt:0.9"><div class="band">token</div><div class="body"><div class="title">burned</div></div></div>
+      <div class="big">Revoke</div><div class="eq">is to <b>burn</b> it</div>
+    </div>
+    <div class="verb" data-cue="3c.2">
+      <svg class="ring" viewBox="0 0 60 60"><circle class="trk" cx="30" cy="30" r="24" /><circle class="arc" cx="30" cy="30" r="24" /></svg>
+      <div style="height: 34px"></div>
+      <div class="big">Expiry</div><div class="eq">is just <b>time</b></div>
+    </div>
+  </div>
+
+  <div class="ledger" style="top: 440px" data-cue="3d.0">
+    <b>public ledger</b><div class="blocks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  </div>
+  <div class="abs center" style="top: 514px; display: flex; gap: 14px; justify-content: center" data-cue="3d.1">
+    <span class="chip"><i style="--c: var(--yes)"></i>anyone can check it</span>
+    <span class="chip" data-cue="3d.2"><i style="--c: var(--yes)"></i>no permission server to run</span>
+  </div>
+</section>
+
+<!-- ───────────── later: a cut in time ───────────── -->
+<section data-scene="later">
+  <div class="abs center" style="top: 300px" data-cue="later:on:0.2">
+    <h1 style="font-size: 54px">29 minutes later…</h1>
+  </div>
+</section>
+
+<!-- ───────────── recap: three questions, three answers ───────────── -->
+<section data-scene="recap">
+  <div class="abs center eyebrow" style="top: 70px" data-cue="9a:on:-0.4; 9b.2:off">Mika's three questions</div>
+  <div class="questions" style="top: 124px" data-cue="9a:on:-0.4; 9b.2:off">
+    <div class="q" data-cue="9a.1">What may this agent do? <small data-cue="9b.0">the tokens it holds</small></div>
+    <div class="q" data-cue="9a.1:on:1.3">Until when? <small data-cue="9b.0:on:0.5">until they expire</small></div>
+    <div class="q" data-cue="9a.2">How do I stop it? <small data-cue="9b.0:on:1.0">burn the token</small></div>
+  </div>
+  <div class="abs center" style="top: 356px; display: flex; gap: 12px; justify-content: center" data-cue="9b.1; 9b.2:off">
+    <span class="sub" style="font-size: 17px; align-self: center; margin-right: 6px">issued by</span>
+    <span class="chip"><i style="--c: var(--you)"></i>you</span>
+    <span class="chip"><i style="--c: var(--employer)"></i>an employer</span>
+    <span class="chip"><i style="--c: var(--gov)"></i>a government body</span>
+    <span class="chip"><i style="--c: var(--manager)"></i>a manager</span>
+    <span class="chip"><i style="--c: var(--agent)"></i>another AI agent</span>
+  </div>
+
+  <div class="abs center" style="top: 196px" data-cue="9b.2:on:0.2">
+    <h1>Grant once.<br><span class="accent">Revoke everywhere.</span></h1>
+  </div>
+  <div class="abs center" style="top: 392px" data-cue="9c:on:0.2">
+    <div style="font-size: 21px; font-weight: 700; max-width: 900px; margin: 0 auto; line-height: 1.4">
+      Grant Once, Revoke Everywhere: Cross-Application AI Agent Authorization via On-Chain Credentials
+    </div>
+    <div class="sub" style="margin-top: 12px; font-size: 19px">Ko Fujimura · Otsuma Women's University · IEEE ICA 2026</div>
+    <div style="margin-top: 16px; font-family: ui-monospace, Menlo, monospace; font-size: 19px; color: var(--you)">github.com/kofujimura/tctc-mcp</div>
+  </div>
+</section>
+
+<script>
+  const scene = new URLSearchParams(location.search).get("scene") ?? "intro";
+  const section = document.querySelector(`[data-scene="${scene}"]`);
+  if (!section) throw new Error(`no scene "${scene}"`);
+  section.classList.add("active");
+
+  /** Every (element, class, time) in this scene, earliest first. */
+  function steps(cues) {
+    const out = [];
+    const missing = new Set();
+    for (const el of section.querySelectorAll("[data-cue]")) {
+      for (const spec of el.dataset.cue.split(";")) {
+        const [name, cls = "on", delay = "0"] = spec.trim().split(":");
+        if (cues[name] === undefined) missing.add(name);
+        else out.push({ el, cls, at: Math.max(0, cues[name] + Number(delay)) });
+      }
+    }
+    if (missing.size) console.warn(`scene ${scene}: no cue for ${[...missing].join(", ")}`);
+    return out.sort((a, b) => a.at - b.at);
+  }
+  const apply = ({ el, cls }) => (cls.startsWith("-") ? el.classList.remove(cls.slice(1)) : el.classList.add(cls));
+
+  /** Run the scene in real time. Returns the names of cues it could not find. */
+  window.play = (cues) => {
+    for (const step of steps(cues)) setTimeout(() => apply(step), step.at * 1000);
+  };
+  /** Jump to the state at `t` seconds, without waiting. */
+  window.seek = (cues, t) => {
+    for (const step of steps(cues)) if (step.at <= t) apply(step);
+  };
+  /** Cue names this scene uses, for a check against the plan. */
+  window.cueNames = () =>
+    [...new Set([...section.querySelectorAll("[data-cue]")].flatMap((el) => el.dataset.cue.split(";").map((s) => s.trim().split(":")[0])))];
+</script>
+</body>
+</html>

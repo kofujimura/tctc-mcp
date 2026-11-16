@@ -119,7 +119,7 @@ export function GrantRow({
             return (
               <option key={id.toString()} value={id.toString()}>
                 {title ? `${title} (#${id.toString()})` : `#${id.toString()}`}
-                {g.length ? ` → ${g.map((x) => `${x.role} · ${x.targetLabel}`).join(", ")}` : ""}
+                {g.length ? ` → ${[...new Set(g.map((x) => x.targetLabel))].join(", ")}` : ""}
               </option>
             );
           })}
