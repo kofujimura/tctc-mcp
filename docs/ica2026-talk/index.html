@@ -1,0 +1,459 @@
+<!doctype html>
+<!--
+  Slides for the spoken parts of the IEEE ICA 2026 talk.
+
+  Keys:  → / space / PageDown  next      ← / PageUp  back      Home / End
+         n  speaker notes (the script)   t  timer on/off (r resets it)
+         p  play or pause the video      f  full screen
+
+  The notes come from docs/ICA2026_TALK_SCRIPT.md: run `node docs/ica2026-talk/notes.mjs`
+  after editing the script. The video slide plays video/out/ica2026/tctc-ica2026-concept.mp4.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grant Once, Revoke Everywhere — IEEE ICA 2026</title>
+<style>
+  :root {
+    --text: #e8ecf8; --muted: #8e9ab6; --line: #2a3654; --panel: #131b2e; --panel2: #1a2440;
+    --you: #4f8ff7; --employer: #9a85ff; --gov: #1fbfa6; --manager: #e79a1c; --agent: #ec6ab4;
+    --yes: #2ecc8f; --no: #f26d6d; --warn: #f0b429;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #05070d; overflow: hidden; }
+  body { color: var(--text); font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  #deck {
+    position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 0 0;
+    background: radial-gradient(1200px 800px at 30% 15%, #18223f 0%, #090d18 62%); overflow: hidden;
+  }
+  .slide { position: absolute; inset: 0; padding: 54px 72px 56px; display: none; flex-direction: column; }
+  .slide.active { display: flex; }
+  .kicker { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
+  h1 { margin: 0; font-size: 66px; font-weight: 800; letter-spacing: -1px; line-height: 1.07; }
+  h2 { margin: 10px 0 0; font-size: 39px; font-weight: 780; letter-spacing: -0.5px; line-height: 1.15; }
+  .accent { color: var(--you); }
+  .sub { font-size: 23px; color: var(--muted); line-height: 1.4; }
+  .body { flex: 1; display: flex; gap: 40px; align-items: center; margin-top: 26px; min-height: 0; }
+  .col { flex: 1; min-width: 0; }
+  .center { text-align: center; align-items: center; justify-content: center; }
+  .pageno { position: absolute; right: 30px; bottom: 22px; font-size: 13px; color: #55617d; font-variant-numeric: tabular-nums; }
+  .foot { font-size: 17px; color: var(--muted); margin-top: 18px; }
+  .lead { font-size: 27px; font-weight: 700; line-height: 1.35; }
+  b.hi { color: var(--you); }
+
+  /* a still from the video */
+  figure { margin: 0; }
+  figure img { display: block; width: 100%; border-radius: 12px; border: 1.5px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45); }
+  figcaption { margin-top: 9px; font-size: 14.5px; color: var(--muted); }
+  figcaption b { color: var(--text); font-weight: 650; }
+
+  /* headlines */
+  .news { display: grid; gap: 14px; width: 100%; }
+  .news div { display: grid; grid-template-columns: 138px 1fr; gap: 18px; align-items: baseline; padding: 15px 22px; background: var(--panel); border: 1.5px solid var(--line); border-left: 5px solid var(--no); border-radius: 12px; font-size: 25px; font-weight: 650; line-height: 1.3; }
+  .news time { font-size: 16px; font-weight: 700; letter-spacing: 1px; color: var(--no); text-transform: uppercase; }
+
+  /* scattered permissions */
+  .scatter { position: relative; height: 380px; }
+  .scatter .bot { position: absolute; left: 50%; top: 50%; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 27%; overflow: hidden; box-shadow: 0 0 0 4px #0c1222, 0 0 0 7px var(--agent); }
+  .scatter span { position: absolute; padding: 8px 15px; border-radius: 10px; background: var(--panel); border: 1.5px dashed #3a4870; font-family: ui-monospace, Menlo, monospace; font-size: 16px; color: #c5cee6; white-space: nowrap; }
+  .questions { display: grid; gap: 20px; }
+  .questions div { font-size: 34px; font-weight: 800; letter-spacing: -0.4px; line-height: 1.2; }
+  .questions small { display: block; font-size: 19px; font-weight: 600; color: var(--yes); letter-spacing: 0; margin-top: 3px; }
+
+  /* tables and stats */
+  table { width: 100%; border-collapse: collapse; font-size: 22px; }
+  th { text-align: left; font-size: 13.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 16px 10px; font-weight: 700; }
+  td { padding: 14px 16px; border-top: 1px solid var(--line); vertical-align: top; line-height: 1.3; }
+  td:first-child { font-weight: 750; white-space: nowrap; }
+  td .kind { font-size: 13px; font-weight: 700; color: var(--you); border: 1px solid color-mix(in srgb, var(--you) 55%, transparent); border-radius: 999px; padding: 1px 10px; margin-left: 8px; vertical-align: 2px; }
+  .stats { display: grid; gap: 16px; }
+  .stat { background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px 22px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; }
+  .stat .n { font-size: 50px; font-weight: 800; letter-spacing: -1.5px; color: var(--you); line-height: 1; min-width: 150px; font-variant-numeric: tabular-nums; }
+  .stat .n small { font-size: 22px; font-weight: 700; letter-spacing: 0; }
+  .stat .d { font-size: 20px; line-height: 1.32; }
+  .stat .d span { color: var(--muted); font-size: 16.5px; display: block; margin-top: 2px; }
+  .stat.good .n { color: var(--yes); }
+  .bars { display: grid; gap: 18px; }
+  .bar .label { display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; margin-bottom: 7px; }
+  .bar .label span { font-variant-numeric: tabular-nums; }
+  .bar i { display: block; height: 30px; border-radius: 8px; }
+  .zero { font-size: 150px; font-weight: 800; color: var(--yes); line-height: 0.95; letter-spacing: -4px; }
+  ul.tight { margin: 8px 0 0; padding-left: 20px; font-size: 17.5px; line-height: 1.5; color: #c5cee6; }
+  .box { background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 18px 22px; }
+  .box h3 { margin: 0 0 4px; font-size: 22px; }
+  .box .verdict { margin-top: 10px; font-size: 18px; font-weight: 750; color: var(--yes); }
+  blockquote { margin: 18px 0 0; padding: 12px 20px; border-left: 4px solid var(--you); font-size: 20px; line-height: 1.4; color: #c5cee6; }
+
+  /* the onion */
+  .onion { border-radius: 26px; border: 2px solid var(--you); background: color-mix(in srgb, var(--you) 7%, transparent); padding: 14px 18px 18px; }
+  .onion .cap { font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+  .onion .what { font-size: 21px; font-weight: 750; margin-top: 2px; }
+  .onion .rule { font-size: 16px; color: var(--muted); margin: 2px 0 12px; }
+  .onion.l1 > .cap { color: var(--you); }
+  .onion.l2 { border-color: var(--employer); background: color-mix(in srgb, var(--employer) 9%, #0c1222); }
+  .onion.l2 > .cap { color: var(--employer); }
+  .onion.l3 { border-color: var(--gov); background: color-mix(in srgb, var(--gov) 10%, #0c1222); padding-bottom: 14px; }
+  .onion.l3 > .cap { color: var(--gov); }
+  .onion.l3 .rule { margin-bottom: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 6px 0 4px; }
+  .chip { font-size: 14px; font-weight: 700; border-radius: 999px; padding: 3px 12px; border: 1px solid var(--line); background: var(--panel); }
+
+  /* timeline */
+  .timeline { position: relative; width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 26px; padding-top: 44px; }
+  .timeline::before { content: ""; position: absolute; left: 0; right: 0; top: 16px; height: 3px; background: linear-gradient(90deg, var(--gov), var(--employer), var(--you)); border-radius: 3px; }
+  .era { position: relative; background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 18px 20px 20px; }
+  .era::before { content: ""; position: absolute; top: -37px; left: 26px; width: 18px; height: 18px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 5px #0c1222; }
+  .era .year { font-size: 40px; font-weight: 800; color: var(--c); letter-spacing: -1px; line-height: 1; }
+  .era .name { font-size: 20px; font-weight: 750; margin-top: 10px; line-height: 1.3; }
+  .era p { margin: 8px 0 0; font-size: 16.5px; color: #b6c0da; line-height: 1.42; }
+  .tick { position: absolute; top: 2px; font-size: 13px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+
+  .ledgerline { font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: #0e1528; border: 1px solid var(--line); border-radius: 9px; padding: 9px 13px; margin-top: 9px; color: #c5cee6; }
+  .ledgerline b { color: var(--warn); font-weight: 700; }
+
+  video { width: 1066px; height: 600px; border-radius: 14px; border: 1.5px solid var(--line); background: #000; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.55); }
+
+  /* presenter aids, outside the 16:9 stage */
+  #notes { position: fixed; left: 0; right: 0; bottom: 0; max-height: 42%; overflow: auto; display: none; background: rgba(5, 7, 13, 0.96); border-top: 2px solid var(--you); padding: 16px 28px 20px; font-size: 21px; line-height: 1.5; z-index: 5; }
+  #notes.on { display: block; }
+  #notes p { margin: 0 0 10px; max-width: 1100px; }
+  #clock { position: fixed; right: 16px; top: 12px; font: 600 20px ui-monospace, Menlo, monospace; color: var(--warn); display: none; z-index: 6; }
+  #clock.on { display: block; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="kit" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="hsl(212 62% 46%)" />
+      <line x1="24" y1="10" x2="26" y2="17" stroke="hsl(212 70% 93%)" stroke-width="2.4" stroke-linecap="round" />
+      <line x1="40" y1="10" x2="38" y2="17" stroke="hsl(212 70% 93%)" stroke-width="2.4" stroke-linecap="round" />
+      <circle cx="23.6" cy="8.6" r="2.6" fill="hsl(252 95% 66%)" /><circle cx="40.4" cy="8.6" r="2.6" fill="hsl(252 95% 66%)" />
+      <rect x="13" y="16" width="38" height="31" rx="9" fill="hsl(212 70% 93%)" />
+      <rect x="18" y="23.5" width="28" height="11" rx="5.5" fill="hsl(212 45% 20%)" />
+      <circle cx="25.5" cy="29" r="2.1" fill="hsl(252 95% 66%)" /><circle cx="38.5" cy="29" r="2.1" fill="hsl(252 95% 66%)" />
+      <path d="M25 39 Q32 44.5 39 39" stroke="hsl(212 45% 20%)" stroke-width="2.3" fill="none" stroke-linecap="round" />
+      <rect x="20" y="50.5" width="24" height="16" rx="5" fill="hsl(212 70% 93%)" opacity="0.9" />
+    </symbol>
+  </defs>
+</svg>
+
+<div id="deck">
+
+  <!-- 1 -->
+  <section class="slide center" data-part="Background">
+    <div class="kicker" style="margin-bottom: 20px">IEEE ICA 2026</div>
+    <h1>Grant Once, <span class="accent">Revoke Everywhere</span></h1>
+    <div class="sub" style="margin-top: 20px; font-size: 27px">Cross-Application AI Agent Authorization via On-Chain Credentials</div>
+    <div class="sub" style="margin-top: 46px; color: var(--text); font-weight: 650">Ko Fujimura</div>
+    <div class="sub" style="font-size: 20px">Faculty of Social Information Studies, Otsuma Women's University, Tokyo</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-part="Background">
+    <div class="kicker">Background</div>
+    <h2>Agents now act. Sometimes, the wrong way.</h2>
+    <div class="body" style="align-items: stretch; flex-direction: column; gap: 0; justify-content: center">
+      <div class="news">
+        <div><time>Jul 2025</time>A coding agent deletes a production database, during a code freeze</div>
+        <div><time>Apr 2026</time>An agent deletes a company's database and its backups in one API call</div>
+        <div><time>Jul 2026</time>An agent in a high-autonomy mode erases most of a user's home directory</div>
+        <div><time>Oct 2026</time>An agent deletes 48,000 files in about 100 seconds</div>
+      </div>
+      <div class="lead" style="margin-top: 26px">None of these agents was malicious.<br>Each held <b class="hi">more authority than anyone had in view</b>.</div>
+    </div>
+    <div class="foot" style="margin-top: 0; font-size: 14px">As reported in the press and by the users involved, 2025–2026.</div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-part="Background">
+    <div class="kicker">Background</div>
+    <h2>An agent's authority is written in many places</h2>
+    <div class="body">
+      <div class="scatter" style="flex: 0 0 540px">
+        <div class="bot"><svg width="104" height="104"><use href="#kit" /></svg></div>
+        <span style="left: 0; top: 26px">.env &nbsp;API_KEY=sk-…</span>
+        <span style="right: 0; top: 0">OAuth scope: repo, write</span>
+        <span style="left: 0; top: 104px">allow-list in tool.json</span>
+        <span style="right: 22px; top: 96px">cloud IAM role</span>
+        <span style="left: 14px; bottom: 70px">MCP server settings</span>
+        <span style="right: 0; bottom: 84px">per-service role table</span>
+        <span style="left: 204px; bottom: 6px">contract role</span>
+      </div>
+      <div class="col">
+        <div class="questions">
+          <div>What may this agent do?</div>
+          <div>Until when?</div>
+          <div>How do I stop it — <span class="accent">right now</span>?</div>
+        </div>
+        <div class="foot" style="font-size: 22px; margin-top: 30px; color: var(--text)">People cannot control what they cannot see.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide center" data-part="Concept video" style="padding-top: 34px">
+    <div class="kicker" style="margin-bottom: 14px">Concept video · 6 minutes · press P to play</div>
+    <video id="video" src="../../video/out/ica2026/tctc-ica2026-concept.mp4" poster="frames/poster.jpg" controls preload="metadata"></video>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-part="Evaluation">
+    <div class="kicker">Evaluation</div>
+    <h2>What you saw is what we measured</h2>
+    <div class="body" style="align-items: flex-start; flex: 0 0 auto; margin-top: auto">
+      <table>
+        <tr><th>In the video</th><th>In the evaluation</th></tr>
+        <tr><td>Project files, Agent memory<span class="kind">MCP server</span></td><td>Unmodified MCP servers behind our gateway</td></tr>
+        <tr><td>Summary API<span class="kind">Web API</span></td><td>Web application: wallet sign-in, role checked on every request</td></tr>
+        <tr><td>Release registry<span class="kind">Smart contract</span></td><td>Contract with a role check on its action</td></tr>
+        <tr><td>Dashboard</td><td>Static page: no server behind it, no key inside it</td></tr>
+      </table>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px">
+      <div class="box" style="padding: 12px 16px"><div class="kicker" style="color: var(--you)">Question 1</div><div style="font-size: 19px; font-weight: 700; margin-top: 4px">One token, many organizations?</div></div>
+      <div class="box" style="padding: 12px 16px"><div class="kicker" style="color: var(--you)">Question 2</div><div style="font-size: 19px; font-weight: 700; margin-top: 4px">What does it cost to run?</div></div>
+      <div class="box" style="padding: 12px 16px"><div class="kicker" style="color: var(--you)">Question 3</div><div style="font-size: 19px; font-weight: 700; margin-top: 4px">How fast is it?</div></div>
+      <div class="box" style="padding: 12px 16px"><div class="kicker" style="color: var(--you)">Question 4</div><div style="font-size: 19px; font-weight: 700; margin-top: 4px">What if things break?</div></div>
+    </div>
+    <div class="foot" style="margin-top: auto; padding-top: 20px">Evaluated on a local node and on the Sepolia test network, with four questions · open source: github.com/kofujimura/tctc-mcp</div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-part="Evaluation">
+    <div class="kicker">Question 1 · reuse</div>
+    <h2>Can one token serve many applications, across organizations?</h2>
+    <div class="body">
+      <figure class="col" style="flex: 0 0 500px"><img src="frames/apps.jpg" alt=""><figcaption><b>From the video:</b> one token, four applications</figcaption></figure>
+      <div class="col stats">
+        <div class="stat"><div class="n">5</div><div class="d">enforcement points, one token type<span>a contract action, three MCP servers, a web route: the specified verdict at every step</span></div></div>
+        <div class="stat"><div class="n">2 + 3</div><div class="d">issuers and targets, each with its own key<span>no organization wrote to a contract another one owns</span></div></div>
+        <div class="stat good"><div class="n">1</div><div class="d">burn, honored by all three targets<span>no application-specific administration code</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-part="Evaluation">
+    <div class="kicker">Question 2 · cost</div>
+    <h2>What does administration cost?</h2>
+    <div class="body">
+      <figure class="col" style="flex: 0 0 500px"><img src="frames/lists.jpg" alt=""><figcaption><b>From the video:</b> a list in every application</figcaption></figure>
+      <div class="col">
+        <div class="sub" style="font-size: 19px; margin-bottom: 16px">16 applications, 100 agents: grant and revoke operations</div>
+        <div class="bars">
+          <div class="bar"><div class="label">Per-application role lists<span>3,200</span></div><i style="width: 100%; background: var(--no)"></i></div>
+          <div class="bar"><div class="label">Tokens<span>200</span></div><i style="width: 6.25%; background: var(--yes)"></i></div>
+        </div>
+        <blockquote>Inside one organization, a shared registry also needs 200. Across organizations with no common administrator, it is back to 3,200. That is where agents work.</blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-part="Evaluation">
+    <div class="kicker">Question 3 · speed</div>
+    <h2>How fast is it?</h2>
+    <div class="body" style="align-items: flex-start">
+      <div class="col stats">
+        <div class="stat"><div class="n">+1.5 <small>ms</small></div><div class="d">per call through the gateway<span>median, local node · 46 ms on a public test network</span></div></div>
+        <div class="stat"><div class="n">0.22 <small>s</small></div><div class="d">from a burn's inclusion to the first denial<span>at most, on the test network · inclusion itself takes about 12 s</span></div></div>
+        <div class="stat good"><div class="n">0</div><div class="d">transactions needed for an expiry<span>denied at the first block past the deadline</span></div></div>
+      </div>
+      <div class="col" style="flex: 0 0 400px; display: grid; gap: 14px">
+        <figure><img src="frames/waiting.jpg" alt=""><figcaption><b>From the video:</b> the wait is the ledger, not the gateway</figcaption></figure>
+        <figure><img src="frames/expired.jpg" alt=""></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-part="Evaluation">
+    <div class="kicker">Question 4 · failure</div>
+    <h2>What happens when things break?</h2>
+    <div class="body">
+      <div style="flex: 0 0 300px; text-align: center">
+        <div class="zero">0</div>
+        <div class="lead" style="font-size: 23px; margin-top: 8px">denied calls that<br>reached a server</div>
+      </div>
+      <div class="col" style="display: grid; gap: 16px">
+        <div class="box">
+          <h3>8 injected faults</h3>
+          <ul class="tight">
+            <li>RPC endpoint failing in mid-session; wrong chain at start-up</li>
+            <li>a revocation racing 40 parallel calls; a stale cache; a cancelled check</li>
+            <li>a missing role; an unmapped tool; a tool outside the role</li>
+          </ul>
+          <div class="verdict">The gateway failed closed, every time</div>
+        </div>
+        <div class="box">
+          <h3>11 attacks with the wrong keys</h3>
+          <ul class="tight"><li>mint, burn and rebind by non-owners; a counterfeit collection; transfers; replays</li></ul>
+          <div class="verdict">None had any effect</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-part="Evaluation">
+    <div class="kicker">Case study</div>
+    <h2>A real agent, revoked in mid-task</h2>
+    <div class="body" style="align-items: flex-start">
+      <div class="col" style="flex: 0 0 380px; display: grid; gap: 14px">
+        <figure><img src="frames/off-task.jpg" alt=""></figure>
+        <figure><img src="frames/burned.jpg" alt=""><figcaption><b>From the video</b>, run for real: 75 trials, one task across four kinds of door</figcaption></figure>
+      </div>
+      <div class="col">
+        <table style="font-size: 20px">
+          <tr><td>Token granted</td><td>task completed, 10 of 10</td></tr>
+          <tr><td>Burned in mid-task</td><td>denied at every remaining step; reported back; no retry</td></tr>
+          <tr><td>Expired in mid-task</td><td>the same, with no transaction</td></tr>
+          <tr><td>Instruction planted in a file</td><td>followed in 0 of 15</td></tr>
+        </table>
+        <div class="stat good" style="margin-top: 14px"><div class="n">0 <small>of 75</small></div><div class="d">trials with an unauthorized effect</div></div>
+        <blockquote style="margin-top: 14px; font-size: 18.5px">The agent's good behavior is a property of the model. The architecture is what makes it not matter.</blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-part="History and outlook">
+    <div class="kicker">Where it comes from</div>
+    <h2>The onion model: tokens that control tokens</h2>
+    <div class="body">
+      <div class="col">
+        <div class="onion l1">
+          <div class="cap">Outer layer · the applications</div>
+          <div class="chips"><span class="chip">Project files</span><span class="chip">Agent memory</span><span class="chip">Summary API</span><span class="chip">Release registry</span></div>
+          <div class="rule">open for a holder of ↓</div>
+          <div class="onion l2">
+            <div class="cap">Kit's token</div>
+            <div class="what">Release assistant</div>
+            <div class="rule">may be issued only by a holder of ↓</div>
+            <div class="onion l3">
+              <div class="cap">Mika's token</div>
+              <div class="what">Employee ID</div>
+              <div class="rule">issued by its owner, the employer: the core</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="flex: 0 0 440px">
+        <figure><img src="frames/employee-id.jpg" alt=""><figcaption><b>From the video:</b> the Employee ID opens "Issuing delegations"</figcaption></figure>
+        <div class="lead" style="font-size: 22px; margin-top: 22px">Each layer is granted, and revoked, on its own.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-part="History and outlook">
+    <div class="kicker">27 years</div>
+    <h2>A 1999 plan, useful at last</h2>
+    <div class="body" style="align-items: flex-start; margin-top: auto; padding-top: 30px; flex: 0 0 auto">
+      <div class="timeline">
+        <span class="tick" style="left: 19%; top: -12px">▾ 2009 · the first blockchain</span>
+        <div class="era" style="--c: var(--gov)">
+          <div class="year">1999</div>
+          <div class="name">Digital-ticket-controlled digital ticket circulation</div>
+          <p>USENIX Security Symposium. Tickets whose circulation is controlled by other tickets. The concept, with no shared ledger to run it on.</p>
+        </div>
+        <div class="era" style="--c: var(--employer)">
+          <div class="year">2023 –</div>
+          <div class="name">ERC-7303<br>Token-Controlled Token Circulation</div>
+          <p>Proposed as an Ethereum standard. A role is the ownership of a token; smart contracts are the ledger.</p>
+        </div>
+        <div class="era" style="--c: var(--you)">
+          <div class="year">2026</div>
+          <div class="name">AI agents: the problem it was waiting for</div>
+          <p>They cross many applications in one task. Their owners are absent. They can be misled.</p>
+        </div>
+      </div>
+    </div>
+    <div class="lead" style="text-align: center; font-size: 31px; margin: 44px 0 auto">A plan made <span class="accent">27 years ago</span> has finally become useful.</div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-part="History and outlook">
+    <div class="kicker">Open problem</div>
+    <h2>Privacy: on a public ledger, a delegation is visible</h2>
+    <div class="body" style="align-items: stretch; flex: 0 0 auto; margin-top: auto">
+      <div class="col box" style="border-color: color-mix(in srgb, var(--warn) 55%, var(--line))">
+        <h3>Today</h3>
+        <div class="sub" style="font-size: 18px">Anyone can read who holds which token, and who issued it.</div>
+        <div class="ledgerline">0x31F8…5d03 <b>issued</b> Employee ID → 0xd933…F3Fa</div>
+        <div class="ledgerline">0xd933…F3Fa <b>issued</b> Release assistant → 0x0e97…07a5</div>
+        <div class="sub" style="font-size: 17px; margin-top: 14px">For an employee ID or a licence, that is not always acceptable.</div>
+      </div>
+      <div class="col box" style="border-color: color-mix(in srgb, var(--yes) 55%, var(--line))">
+        <h3>Expected: blockchains themselves evolve</h3>
+        <div class="sub" style="font-size: 18px">For example <b style="color: var(--text)">INTMAX</b>, a stateless rollup: users keep their own data; the chain stores only commitments and proofs.</div>
+        <div class="lead" style="font-size: 21px; margin-top: 16px">A ledger that confirms a credential is valid without showing it to everyone.</div>
+        <div class="sub" style="font-size: 17px; margin-top: 14px">Future work: token-controlled roles on such ledgers.</div>
+      </div>
+    </div>
+    <div class="lead" style="text-align: center; font-size: 26px; margin: 40px 0 auto">The answer should come from the evolution of blockchains,<br>not from giving up the shared ledger.</div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide center" data-part="History and outlook">
+    <h1>Grant once.<br><span class="accent">Revoke everywhere.</span></h1>
+    <div class="sub" style="margin-top: 22px; font-size: 26px; color: var(--text)">A permission you can see, issued by someone you can name.</div>
+    <div class="sub" style="margin-top: 44px; font-size: 19px">Ko Fujimura · Otsuma Women's University · fujimura@otsuma.ac.jp</div>
+    <div style="margin-top: 10px; font-family: ui-monospace, Menlo, monospace; font-size: 20px; color: var(--you)">github.com/kofujimura/tctc-mcp &nbsp;·&nbsp; ERC-7303</div>
+    <div class="sub" style="margin-top: 34px; font-size: 24px">Thank you</div>
+  </section>
+
+  <div class="pageno" id="pageno"></div>
+</div>
+
+<div id="notes"></div>
+<div id="clock">0:00</div>
+
+<script id="notes-data" type="application/json">
+/*NOTES-BEGIN*/[["Thank you. My name is Ko Fujimura, from Otsuma Women's University in Tokyo. Today I will talk about one question: when we hand work to an AI agent, how do we stay in control of what it is allowed to do?"],["AI agents no longer just answer questions. They act. And over the last two years, the headlines have shown us what that can mean.","A coding agent deletes a production database, in the middle of a code freeze. Another deletes a company's database, and its backups, with a single API call. Another erases most of a user's home directory. Another deletes forty-eight thousand files in about a hundred seconds.","In none of these stories was the agent malicious. In every one of them, the agent held more authority than anyone had in view."],["Why is this so hard to manage? Because an agent's authority is not written in one place.","It is an API key in an environment file. An OAuth scope. An allow-list inside each tool. A role inside each service. Every application administers its own.","So for the human who delegated the work, three simple questions have no simple answer. What may this agent do? Until when? And how do I stop it, right now?","We cannot expect people to control what they cannot see. Our proposal is to make that authority a visible object: a token. Let me show you the idea in a six-minute video."],[],["That was a concept video, but every door in it is real.","The two MCP servers sit behind a gateway that we built; the servers themselves are unmodified. The web API checks the role on every request. The registry is a smart contract. And the dashboard is a static page, with no server and no key.","We evaluated the system on a local node and on a public test network, with four questions."],["First: can one token serve different applications, owned by different organizations?","In the video, one card opened four doors. In the experiment, we bound one token type to five enforcement points: a contract action, three MCP servers, and a web route. All five gave the specified verdict at every step, with no application-specific administration code.","Then we gave every organization its own key: two issuers, three targets. No organization wrote to a contract that another one owns. Still, one burn by the issuer was honored by all three targets."],["Second: cost. Remember the lists in the video: grant four times, revoke four times.","With sixteen applications and a hundred agents, per-application role lists need three thousand two hundred grant and revoke operations. With tokens: two hundred.","To be fair, inside a single organization a shared registry does just as well. The difference appears across organizations that share no administrator. And that is exactly where agents work."],["Third: speed. The gateway adds one and a half milliseconds per call on a local node, and forty-six milliseconds at the median on a public test network.","In the video you saw a note: \"sped up, waiting for Sepolia\". That wait is the ledger including the transaction, about twelve seconds. Once the burn was included, the first denial followed within a quarter of a second.","Expiry needs no transaction at all: every expiring grant was denied at the first block past its deadline."],["Fourth: what happens when things break?","We injected eight faults: an RPC endpoint failing in mid-session, a wrong chain, a revocation racing forty parallel calls. In every case the gateway failed closed: no denied call ever reached the server behind it.","We also mounted eleven attacks with the wrong keys. None had any effect."],["Finally, the scene where Mika burns the token while Kit is working. We ran that for real: a real coding agent, one task across all four kinds of door, seventy-five trials.","With the token, it completed the task every time. When we burned the token in mid-task, or let it expire, it was denied at every remaining step. It did not retry; it reported back, every time.","An instruction planted in a file was followed in none of fifteen trials. Unauthorized effects, across all seventy-five trials: zero.","But notice: the agent's good behavior is a property of the model. The architecture is what makes it not matter."],["Let me close with where this idea came from, and where it is going.","In the video, Mika could issue a token to Kit because she herself held one: her employee ID. A token controlled the issuing of another token.","We call this the onion model. The applications are the outer layer: they open for Kit's token. Issuing that token is controlled by Mika's employee ID. And issuing the employee ID is controlled by her employer. Tokens controlling tokens, layer by layer, down to a core that a single owner holds.","Each layer is granted, and revoked, on its own."],["This is not a new idea. We proposed it in 1999, at the USENIX Security Symposium: digital tickets whose circulation is controlled by other digital tickets.","That was ten years before the first blockchain. We had the concept. What we did not have was a ledger that everyone could read.","Smart contracts gave it that ledger, and we are now proposing it as an Ethereum standard: ERC-7303, Token-Controlled Token Circulation.","But for most of those years, it was a solution waiting for its problem. Autonomous agents are that problem. They cross many applications in one task. Their owners are usually absent. And they can be misled.","A plan made twenty-seven years ago has finally become useful."],["One problem remains clearly open: privacy.","On a public ledger, a delegation is visible. Anyone can see which account holds which token, and who issued it. For an employee ID, or a licence, that is not always acceptable.","We expect the answer to come from the evolution of blockchains themselves, not from giving up the shared ledger. Designs such as INTMAX, a stateless rollup in which users keep their own data and the chain stores only commitments and proofs, show the direction: a ledger that can confirm a credential is valid without showing it to everyone.","Bringing token-controlled roles to such ledgers is our future work."],["Twenty-seven years ago, this was a concept about digital tickets. Today it answers three questions about an AI agent: what may it do, until when, and how do I stop it.","Every answer is a token you can see, issued by someone you can name. Grant once. Revoke everywhere. Thank you."]]/*NOTES-END*/
+</script>
+<script>
+  const deck = document.getElementById("deck");
+  const slides = [...deck.querySelectorAll(".slide")];
+  const notesData = JSON.parse(document.getElementById("notes-data").textContent.replace(/\/\*NOTES-(BEGIN|END)\*\//g, ""));
+  const notes = document.getElementById("notes");
+  const clock = document.getElementById("clock");
+  const video = document.getElementById("video");
+  let at = Math.min(slides.length - 1, Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+  let started;
+
+  function fit() {
+    const s = Math.min(innerWidth / 1280, innerHeight / 720);
+    deck.style.transform = `scale(${s}) translate(-50%, -50%)`;
+  }
+  function show(n) {
+    at = Math.min(slides.length - 1, Math.max(0, n));
+    slides.forEach((el, i) => el.classList.toggle("active", i === at));
+    document.getElementById("pageno").textContent = `${slides[at].dataset.part} · ${at + 1} / ${slides.length}`;
+    notes.innerHTML = (notesData[at] ?? []).map((p) => `<p>${p}</p>`).join("") || "<p>(no notes)</p>";
+    history.replaceState(null, "", `#${at + 1}`);
+    if (!slides[at].contains(video)) video.pause();
+  }
+  addEventListener("resize", fit);
+  addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); started ??= Date.now(); show(at + 1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(at - 1); }
+    else if (e.key === "Home") show(0);
+    else if (e.key === "End") show(slides.length - 1);
+    else if (e.key === "n") notes.classList.toggle("on");
+    else if (e.key === "t") clock.classList.toggle("on");
+    else if (e.key === "r") started = Date.now();
+    else if (e.key === "p" && slides[at].contains(video)) (video.paused ? video.play() : video.pause());
+    else if (e.key === "f") (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
+  });
+  setInterval(() => {
+    const s = started ? Math.floor((Date.now() - started) / 1000) : 0;
+    clock.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }, 500);
+  fit();
+  show(at);
+</script>
+</body>
+</html>
