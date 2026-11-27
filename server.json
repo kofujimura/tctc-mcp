@@ -6,12 +6,12 @@
     "url": "https://github.com/kofujimura/tctc-mcp",
     "source": "github"
   },
-  "version": "0.3.4",
+  "version": "0.4.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "tctc-mcp",
-      "version": "0.3.4",
+      "version": "0.4.0",
       "transport": {
         "type": "stdio"
       },
@@ -30,6 +30,25 @@
           "description": "Issuer key enabling grant_role/revoke_role (admin mode). Omit for read-only mode: state-changing tools are then not even registered",
           "isRequired": false,
           "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "TCTC_AGENT_PRIVATE_KEY",
+          "description": "The agent's own EOA key, also read from ./.env.local (create one with `tctc-mcp agent init`). Its address becomes the default subject, and whoami returns a dashboard link signed by it. It never signs transactions",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "TCTC_AGENT_NAME",
+          "description": "Display name for the agent on the dashboard",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "TCTC_DASHBOARD_URL",
+          "description": "Base URL of the dashboard the signed agent link points to (default https://tctc-mcp.vercel.app/)",
+          "isRequired": false,
           "format": "string"
         }
       ]

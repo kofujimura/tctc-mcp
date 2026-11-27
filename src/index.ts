@@ -9,8 +9,8 @@ import { registerAdminTools } from "./tools/admin.js";
 import { ConfigError } from "./errors.js";
 import { AGENT_ENV_FILE, AGENT_KEY_VAR, buildDashboardLink, loadAgentIdentity } from "./agent.js";
 import { runAgentCommand } from "./agent-cli.js";
+import { VERSION } from "./version.js";
 
-const VERSION = "0.3.3";
 const DEFAULT_CACHE_TTL_MS = 10_000;
 const DISCOVERY_CACHE_TTL_MS = 60_000;
 
