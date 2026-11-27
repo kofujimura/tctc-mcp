@@ -7,12 +7,15 @@ An MCP server exposing [ERC-7303](https://eips.ethereum.org/EIPS/eip-7303)
 their own on-chain permissions, and human principals grant/revoke them
 by minting/burning control tokens — no permission server required.
 
-Status: **v0.3.4** — adds timed roles with gasless auto-expiry (below),
-on top of v0.2's IERC7303 auto-discovery; published on npm
-([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp)), unit-tested
-and verified end-to-end against the Sepolia demo deployment (grant →
-check → revoke → check, and grant-for-75s → auto-expiry, through a
-real MCP client).
+Status: **v0.4.0** — adds agent identity: each agent is an EOA, and the
+control tokens it holds are its permissions, shown to humans on the
+dashboard through a link signed by the agent key (below). It builds on
+v0.3's timed roles with gasless auto-expiry and v0.2's IERC7303
+auto-discovery. Published on npm
+([`tctc-mcp`](https://www.npmjs.com/package/tctc-mcp)) and unit-tested;
+the grant → check → revoke → check and grant-for-75s → auto-expiry
+flows were verified end-to-end against the Sepolia demo deployment
+through a real MCP client.
 
 ## Demo (60 seconds)
 
@@ -111,7 +114,7 @@ Subjects can be given as a raw `address`, as an ERC-8004 `agentId`
 target), or omitted to use the agent's own key (below) or the config's
 `self`.
 
-## Agent identity: an agent is an EOA
+## Agent identity: an agent is an EOA (v0.4)
 
 Give each agent its own key in the folder it runs from, and its
 permissions become visible to humans as tokens:
@@ -128,7 +131,7 @@ npx -y tctc-mcp agent init --name "Alice"   # writes .env.local: TCTC_AGENT_PRIV
 - It prints a **dashboard link signed by the agent key** (also via the
   `whoami` tool or `npx tctc-mcp agent link`). Open it once: the
   [dashboard](https://tctc-mcp.vercel.app/) verifies the signature and
-  adds the agent to its *Agents* panel, which from then on shows the
+  adds the agent under *Your agents*, which from then on shows the
   control tokens the agent holds — and what they let it do — live.
 - Restart the agent in the same folder and it is the same account, so
   tokens it already holds are visible on the dashboard immediately.
@@ -199,11 +202,15 @@ no further transaction).
 
 **Live: <https://tctc-mcp.vercel.app/>** — while tctc-mcp exposes ERC-7303
 roles to AI agents, the [TCTC Dashboard](dashboard/) exposes the same
-on-chain state to the humans who manage them: inspect any IERC7303 target,
-watch `hasRole` verdicts and per-control-token `balanceOf` evidence live,
-grant/revoke as the issuer (with timed grants and countdowns for expiring
-control tokens), and deploy new control-token collections straight from a
-browser wallet. Two clients of one source of truth: the chain. See
+on-chain state to the humans who manage them. Its first screen shows who
+holds what: you (the connected wallet) and your agents, each with the
+control tokens it holds and what they open, live; an issuer can grant
+and revoke right on an agent's card. Under *Manage* you can inspect any
+IERC7303 target, watch `hasRole` verdicts and per-control-token
+`balanceOf` evidence live, grant/revoke as the issuer (with timed grants
+and countdowns for expiring control tokens), and deploy new
+control-token collections straight from a browser wallet. Two clients of
+one source of truth: the chain. See
 [dashboard/README.md](dashboard/README.md) for details and try-it links.
 
 [![TCTC Dashboard — inspecting a target's roles, with live hasRole verdicts and issuer grant/revoke controls](docs/tctc-mcp-dashboard.png)](https://tctc-mcp.vercel.app/)

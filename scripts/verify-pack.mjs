@@ -12,7 +12,7 @@
  * that unit tests and in-repo E2Es cannot see.
  */
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -96,7 +96,12 @@ try {
     clientInfo: { name: "verify-pack", version: "0" },
   });
   if (!init.result?.serverInfo?.name) fail("initialize returned no serverInfo");
-  console.log(`✓ initialize: ${init.result.serverInfo.name} ${init.result.serverInfo.version ?? ""}`);
+  // The packed bin must report the version it is published as (0.3.4 said 0.3.3).
+  const expected = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
+  if (init.result.serverInfo.version !== expected) {
+    fail(`serverInfo.version is ${init.result.serverInfo.version}, but package.json says ${expected}`);
+  }
+  console.log(`✓ initialize: ${init.result.serverInfo.name} ${init.result.serverInfo.version}`);
   server.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 
   const tools = await rpc("tools/list", {});
