@@ -5,3 +5,4 @@ dist/
 *.log
 video/out/
 erc-update/
+.DS_Store

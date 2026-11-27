@@ -1,10 +1,17 @@
+/*
+ * Colour tokens. Dark is the default; light applies when the system asks
+ * for it, or when the page sets data-theme="light" (the header's theme
+ * button, or ?theme=light for screen recordings). data-theme="dark" pins
+ * dark on a light system.
+ */
 :root {
-  --bg: #0e1116;
-  --panel: #161b24;
-  --panel-2: #1c2330;
-  --border: #2a3344;
-  --text: #dde4ee;
-  --muted: #8b96a8;
+  color-scheme: dark;
+  --bg: #0b0e14;
+  --panel: #131822;
+  --panel-2: #1a2130;
+  --border: #283247;
+  --text: #e6ebf3;
+  --muted: #8d98ab;
   --accent: #4f8ff7;
   --yes: #2ecc8f;
   --yes-bg: #123527;
@@ -14,21 +21,83 @@
   --warn-bg: #3a2f10;
   --info: #6ea8fe;
   --info-bg: #16263f;
+  --std721: #b79df5;
+  --std721-bg: #2b2140;
+  --std1155: #6fd4e8;
+  --std1155-bg: #10333d;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  /* who issued a token */
+  --k-you: #4f8ff7;
+  --k-employer: #9a85ff;
+  --k-government: #1fbfa6;
+  --k-manager: #e79a1c;
+  --k-agent: #ec6ab4;
+  --k-org: #7f8ca0;
+  --k-unknown: #7f8ca0;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f5f9;
+  --panel: #ffffff;
+  --panel-2: #eef1f6;
+  --border: #d7dde8;
+  --text: #18202c;
+  --muted: #5b6678;
+  --accent: #2f6fe0;
+  --yes: #12905f;
+  --yes-bg: #dcf5ea;
+  --no: #d04545;
+  --no-bg: #fde3e3;
+  --warn: #a96c00;
+  --warn-bg: #fdf3d7;
+  --info: #2f6fe0;
+  --info-bg: #e3edfd;
+  --std721: #6a3fd0;
+  --std721-bg: #ece4fb;
+  --std1155: #0e7490;
+  --std1155-bg: #d9f2f8;
+  --shadow: 0 8px 28px rgba(24, 32, 44, 0.16);
+  --k-you: #2f6fe0;
+  --k-employer: #6f55e0;
+  --k-government: #0f9b86;
+  --k-manager: #c47f0a;
+  --k-agent: #d0408f;
+  --k-org: #5f6b7d;
+  --k-unknown: #5f6b7d;
+}
+
 @media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f4f6fa;
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f3f5f9;
     --panel: #ffffff;
     --panel-2: #eef1f6;
     --border: #d7dde8;
-    --text: #1c2330;
+    --text: #18202c;
     --muted: #5b6678;
+    --accent: #2f6fe0;
+    --yes: #12905f;
     --yes-bg: #dcf5ea;
+    --no: #d04545;
     --no-bg: #fde3e3;
+    --warn: #a96c00;
     --warn-bg: #fdf3d7;
+    --info: #2f6fe0;
     --info-bg: #e3edfd;
+    --std721: #6a3fd0;
+    --std721-bg: #ece4fb;
+    --std1155: #0e7490;
+    --std1155-bg: #d9f2f8;
+    --shadow: 0 8px 28px rgba(24, 32, 44, 0.16);
+    --k-you: #2f6fe0;
+    --k-employer: #6f55e0;
+    --k-government: #0f9b86;
+    --k-manager: #c47f0a;
+    --k-agent: #d0408f;
+    --k-org: #5f6b7d;
+    --k-unknown: #5f6b7d;
   }
 }
 
@@ -44,12 +113,12 @@ body {
 }
 
 .app {
-  max-width: 980px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 24px 20px 80px;
 }
 
-header {
+.app > header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -342,24 +411,13 @@ select {
 }
 
 .std-721 {
-  background: #2b2140;
-  color: #b79df5;
+  background: var(--std721-bg);
+  color: var(--std721);
 }
 
 .std-1155 {
-  background: #10333d;
-  color: #6fd4e8;
-}
-
-@media (prefers-color-scheme: light) {
-  .std-721 {
-    background: #ece4fb;
-    color: #6a3fd0;
-  }
-  .std-1155 {
-    background: #d9f2f8;
-    color: #0e7490;
-  }
+  background: var(--std1155-bg);
+  color: var(--std1155);
 }
 
 .mini {
@@ -441,7 +499,7 @@ select {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow);
 }
 
 .tx-pending {
@@ -465,16 +523,139 @@ select {
   overflow-wrap: anywhere;
 }
 
-footer {
+.app > footer {
   margin-top: 24px;
   color: var(--muted);
 }
 
-footer summary {
+.app > footer summary {
   cursor: pointer;
   font-size: 13px;
 }
 
-footer a {
+.app > footer a {
   color: var(--accent);
+}
+
+/* ── Agents: permissions as tokens ─────────────────────────────────────── */
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+
+.error-text {
+  color: var(--no);
+  margin-top: 8px;
+}
+
+.name-input {
+  font-family: inherit;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.onboarding {
+  margin: 14px 0 0;
+  padding: 12px 16px 12px 34px;
+  background: var(--panel-2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.onboarding code,
+.watching code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.watching {
+  margin-top: 14px;
+}
+
+.watching summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.watching .hint {
+  margin-top: 8px;
+}
+
+.watch-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.watch-chip {
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: normal;
+}
+
+.chip-x {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0 0 0 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.chip-x:hover {
+  color: var(--no);
+}
+
+.chip-btn {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chip-btn:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 16px 16px 80px;
+  }
+  .addr-input,
+  .addr-input.small {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .tx-log {
+    left: 16px;
+    right: 16px;
+  }
 }

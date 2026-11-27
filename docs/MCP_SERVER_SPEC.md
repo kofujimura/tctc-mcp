@@ -263,8 +263,22 @@ as `grant_role`, calling `admin.revoke`.
 ## 4. Behavior details
 
 - **Subject resolution order:** explicit `address` → explicit `agentId`
-  (→ TBA) → config `self`. Every response echoes the resolved address
-  so there is no ambiguity about who was checked.
+  (→ TBA) → the agent's own key (`TCTC_AGENT_PRIVATE_KEY`, from the
+  environment or `./.env.local`; `subjectResolvedVia: "agent-key"`) →
+  config `self`. Every response echoes the resolved address so there is
+  no ambiguity about who was checked.
+- **Agent identity (v0.4):** an agent *is* an EOA. When the server
+  starts in a folder whose `.env.local` holds `TCTC_AGENT_PRIVATE_KEY`
+  (create one with `tctc-mcp agent init`), it derives the agent's
+  address, makes it the default subject, and offers an EIP-191-signed
+  dashboard link (stderr at startup, the `whoami` tool, or
+  `tctc-mcp agent link`). Opening the link binds the agent to the TCTC
+  dashboard, which verifies the signature (proof of key possession) and
+  from then on shows the control tokens the address holds. Only the
+  `TCTC_AGENT_*` / `TCTC_DASHBOARD_URL` keys are read from `.env.local`
+  — never `TCTC_ADMIN_PRIVATE_KEY`. The agent key only derives the
+  address and signs the link message; it never signs transactions and
+  is never logged or returned.
 - **Freshness:** `check_role` results are read live; an optional
   in-memory cache (default TTL 10 s, `--no-cache` to disable) absorbs
   bursts. Revocation latency tolerance belongs to the *caller's*

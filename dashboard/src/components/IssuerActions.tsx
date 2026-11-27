@@ -1,20 +1,9 @@
 import { useEffect, useState } from "react";
-import type { Address, Chain, Hex, PublicClient } from "viem";
-import {
-  expiringCtAbi,
-  isAddress,
-  makeWalletClient,
-  shortAddress,
-  standardCtAbi,
-} from "../lib/core";
+import type { Address, Chain, PublicClient } from "viem";
+import { isAddress } from "../lib/core";
+import { DURATIONS, issuerWrite, type TxEntry } from "../lib/issuer";
 
-export interface TxEntry {
-  id: number;
-  label: string;
-  status: "pending" | "confirmed" | "failed";
-  hash?: Hex;
-  error?: string;
-}
+export type { TxEntry } from "../lib/issuer";
 
 interface Props {
   ctAddress: Address;
@@ -28,14 +17,6 @@ interface Props {
   updateTx: (id: number, patch: Partial<TxEntry>) => void;
   onChanged: () => void;
 }
-
-const DURATIONS: { label: string; seconds: number }[] = [
-  { label: "10 minutes", seconds: 600 },
-  { label: "1 hour", seconds: 3600 },
-  { label: "1 day", seconds: 86400 },
-  { label: "7 days", seconds: 604800 },
-  { label: "30 days", seconds: 2592000 },
-];
 
 /**
  * Grant / revoke controls, shown only when the connected wallet is the
@@ -65,74 +46,22 @@ export function IssuerActions({
 
   async function send(action: "grant" | "revoke") {
     if (!isAddress(to)) return;
-    const id = Date.now() + Math.random();
-    const verb = action === "grant" ? "Grant" : "Revoke";
-    pushTx({
-      id,
-      label: `${verb} typeId ${typeId.toString()} ${action === "grant" ? "→" : "from"} ${shortAddress(to)}`,
-      status: "pending",
-    });
     setBusy(true);
-    try {
-      const wc = makeWalletClient(chain);
-      try {
-        await wc.switchChain({ id: chain.id });
-      } catch {
-        try {
-          await wc.addChain({ chain });
-          await wc.switchChain({ id: chain.id });
-        } catch {
-          /* let the write surface the real error */
-        }
-      }
-      let hash: Hex;
-      if (action === "grant") {
-        hash = expiring
-          ? await wc.writeContract({
-              address: ctAddress,
-              abi: expiringCtAbi,
-              functionName: "mint",
-              args: [to, typeId, BigInt(Math.floor(Date.now() / 1000) + seconds)],
-              account,
-              chain,
-            })
-          : await wc.writeContract({
-              address: ctAddress,
-              abi: standardCtAbi,
-              functionName: "mint",
-              args: [to, typeId, 1n],
-              account,
-              chain,
-            });
-      } else {
-        hash = expiring
-          ? await wc.writeContract({
-              address: ctAddress,
-              abi: expiringCtAbi,
-              functionName: "burnByIssuer",
-              args: [to, typeId],
-              account,
-              chain,
-            })
-          : await wc.writeContract({
-              address: ctAddress,
-              abi: standardCtAbi,
-              functionName: "burnByIssuer",
-              args: [to, typeId, 1n],
-              account,
-              chain,
-            });
-      }
-      updateTx(id, { hash });
-      await client.waitForTransactionReceipt({ hash });
-      updateTx(id, { status: "confirmed" });
-      onChanged();
-    } catch (e) {
-      const message = e instanceof Error ? e.message.split("\n")[0] : String(e);
-      updateTx(id, { status: "failed", error: message });
-    } finally {
-      setBusy(false);
-    }
+    const ok = await issuerWrite({
+      action,
+      ctAddress,
+      typeId,
+      expiring,
+      to,
+      seconds,
+      chain,
+      client,
+      account,
+      pushTx,
+      updateTx,
+    });
+    setBusy(false);
+    if (ok) onChanged();
   }
 
   return (

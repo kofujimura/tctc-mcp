@@ -41,7 +41,7 @@
   "scripts": {
     "build": "npm run build:core && tsc",
     "build:gate": "cd gate && npm run build",
-    "dev": "tsx src/index.ts",
+    "dev": "npm run build:core && tsx src/index.ts",
     "start": "node dist/index.js",
     "test": "npm run build:core && vitest run",
     "prepublishOnly": "npm run build && npm test && npm run verify:pack",
@@ -51,7 +51,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.0",
     "viem": "^2.34.0",
-    "zod": "^3.25.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -59,7 +59,7 @@
     "playwright": "^1.61.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.2.0"
+    "vitest": "^5.0.5"
   },
   "exports": "./dist/index.js"
 }

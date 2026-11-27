@@ -95,6 +95,7 @@ npx -y tctc-gate --config gate.json -- npx -y some-mcp-server …
 
 | Tool | Mode | Purpose |
 |---|---|---|
+| `whoami` | both | This agent's own EOA (from `.env.local`) + a signed dashboard link |
 | `list_roles` | both | Configured roles and their control tokens |
 | `check_role` | both | Does an account hold a role? (live `balanceOf`, with evidence) |
 | `check_all_roles` | both | Session-start self-assessment across all roles |
@@ -107,7 +108,35 @@ npx -y tctc-gate --config gate.json -- npx -y some-mcp-server …
 
 Subjects can be given as a raw `address`, as an ERC-8004 `agentId`
 (resolved to its ERC-6551 Token Bound Account, the recommended binding
-target), or omitted to use the config's `self`.
+target), or omitted to use the agent's own key (below) or the config's
+`self`.
+
+## Agent identity: an agent is an EOA
+
+Give each agent its own key in the folder it runs from, and its
+permissions become visible to humans as tokens:
+
+```bash
+cd my-agent/                                # where the agent (e.g. Claude Code) starts
+npx -y tctc-mcp agent init --name "Alice"   # writes .env.local: TCTC_AGENT_PRIVATE_KEY=… (mode 0600)
+```
+
+- When tctc-mcp starts in that folder it reads `.env.local`, and the
+  agent's address becomes the default subject: `check_all_roles` with no
+  arguments answers "what am **I** allowed to do?"
+  (`subjectResolvedVia: "agent-key"`).
+- It prints a **dashboard link signed by the agent key** (also via the
+  `whoami` tool or `npx tctc-mcp agent link`). Open it once: the
+  [dashboard](https://tctc-mcp.vercel.app/) verifies the signature and
+  adds the agent to its *Agents* panel, which from then on shows the
+  control tokens the agent holds — and what they let it do — live.
+- Restart the agent in the same folder and it is the same account, so
+  tokens it already holds are visible on the dashboard immediately.
+- Only `TCTC_AGENT_PRIVATE_KEY`, `TCTC_AGENT_NAME` and
+  `TCTC_DASHBOARD_URL` are read from `.env.local`; the admin key never
+  is. The agent key only derives the address and signs the link — it
+  never signs transactions, and is never logged or returned. Keep
+  `.env.local` out of version control.
 
 ## IERC7303 auto-discovery (v0.2)
 

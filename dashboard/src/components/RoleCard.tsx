@@ -8,7 +8,8 @@ import {
   type RoleEvidence,
   type RoleInfo,
 } from "../lib/core";
-import { IssuerActions, type TxEntry } from "./IssuerActions";
+import { IssuerActions } from "./IssuerActions";
+import type { TxEntry } from "../lib/issuer";
 
 interface Props {
   role: RoleInfo;

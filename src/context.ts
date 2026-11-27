@@ -1,6 +1,7 @@
 import type { Config } from "./config.js";
 import type { Chains } from "./chain.js";
 import type { DiscoveredBindings } from "./discovery.js";
+import type { AgentIdentity } from "./agent.js";
 
 interface CacheEntry<T> {
   value: T;
@@ -40,4 +41,6 @@ export interface Context {
   /** IERC7303 discovery results (role → control-token bindings). */
   discovery: TtlCache<DiscoveredBindings>;
   adminMode: boolean;
+  /** The agent's own EOA (TCTC_AGENT_PRIVATE_KEY / .env.local), if configured. */
+  agent?: AgentIdentity;
 }

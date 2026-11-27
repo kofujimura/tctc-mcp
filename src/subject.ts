@@ -11,10 +11,13 @@ export interface SubjectInput {
 
 export interface ResolvedSubject {
   address: Address;
-  via: "explicit-address" | "agentId-tba" | "config-self";
+  via: "explicit-address" | "agentId-tba" | "agent-key" | "config-self";
 }
 
-/** Resolution order per spec §4: explicit address → agentId → config self. */
+/**
+ * Resolution order per spec §4: explicit address → agentId → the agent's own
+ * key (TCTC_AGENT_PRIVATE_KEY / .env.local) → config self.
+ */
 export async function resolveSubject(
   ctx: Context,
   subject?: SubjectInput,
@@ -31,6 +34,9 @@ export async function resolveSubject(
   if (subject?.agentId !== undefined) {
     return { address: await agentTba(ctx, subject.agentId), via: "agentId-tba" };
   }
+  if (ctx.agent) {
+    return { address: ctx.agent.address, via: "agent-key" };
+  }
   const self = ctx.config.self;
   if (self) {
     if ("address" in self) {
@@ -40,6 +46,6 @@ export async function resolveSubject(
   }
   throw new ToolError(
     "SUBJECT_UNRESOLVED",
-    "no subject given and no self section in the config",
+    "no subject given, no agent key (TCTC_AGENT_PRIVATE_KEY / .env.local) and no self section in the config",
   );
 }
